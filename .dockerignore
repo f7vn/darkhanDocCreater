@@ -1,0 +1,9 @@
+.git
+.gitignore
+.DS_Store
+.venv
+__pycache__
+*.pyc
+generated
+tmp
+PROJECT_CONTEXT.md

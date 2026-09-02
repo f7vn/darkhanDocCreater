@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Вход в генератор документов">
+  <title>Вход — Qūjat</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="login-page">
+  <main class="login-shell">
+    <section class="login-card" aria-labelledby="login-title">
+      <span class="login-kicker">Закрытый доступ</span>
+      <h1 id="login-title">Вход</h1>
+      <p class="login-intro">Введите данные для доступа к генератору документов.</p>
+      <form class="login-form" action="/login" method="post">
+        <label class="login-field">
+          <span>Логин</span>
+          <input name="username" type="text" autocomplete="username" maxlength="100" required autofocus>
+        </label>
+        <label class="login-field">
+          <span>Пароль</span>
+          <input name="password" type="password" autocomplete="current-password" maxlength="100" required>
+        </label>
+        <p id="login-error" class="login-error" hidden role="alert">Неверный логин или пароль.</p>
+        <button class="login-button" type="submit">Войти</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Генератор технических спецификаций и коммерческих предложений">
+  <title>Qūjat — генератор документов</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%23155f47'/><text x='32' y='44' text-anchor='middle' font-size='38' fill='white'>Q</text></svg>">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к форме</a>
+  <main id="main" class="page-shell">
+    <h1 class="sr-only">Генератор документов</h1>
+
+    <div class="workspace">
+      <form id="generator-form" class="form-card" novalidate>
+        <fieldset class="field-group">
+          <legend><span>1</span> Вид закупки по КТРУ</legend>
+          <p class="field-hint">Содержание и формулировки документов изменятся автоматически.</p>
+          <div class="option-list">
+            <label class="option-card">
+              <input type="radio" name="ktru" value="aesthetic" checked>
+              <span class="option-check" aria-hidden="true"></span>
+              <span class="option-copy">
+                <strong>Эстетическое оформление</strong>
+                <small>Оформление стен по брендбуку «Адал азамат»</small>
+              </span>
+            </label>
+            <label class="option-card">
+              <input type="radio" name="ktru" value="finishing">
+              <span class="option-check" aria-hidden="true"></span>
+              <span class="option-copy">
+                <strong>Декоративно-отделочные работы</strong>
+                <small>Работы по внутреннему оформлению помещений</small>
+              </span>
+            </label>
+            <label class="option-card">
+              <input type="radio" name="ktru" value="graphics">
+              <span class="option-check" aria-hidden="true"></span>
+              <span class="option-copy">
+                <strong>Надписи и изображения</strong>
+                <small>Нанесение изображений и текста на объекты</small>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="field-group area-group">
+          <legend><span>2</span> Общая площадь</legend>
+          <p class="field-hint">Одинаковое значение попадёт во все пять исходных документов.</p>
+          <div class="area-control">
+            <label class="area-input-frame" for="area">
+              <span class="area-input-label">Площадь</span>
+              <input id="area" name="area" type="text" inputmode="decimal" value="80" autocomplete="off" aria-describedby="area-help area-error">
+              <span class="area-unit" aria-hidden="true">м²</span>
+            </label>
+            <div class="area-stepper" role="group" aria-label="Изменить площадь">
+              <button type="button" id="decrease" aria-label="Уменьшить площадь на один квадратный метр">−</button>
+              <button type="button" id="increase" aria-label="Увеличить площадь на один квадратный метр">+</button>
+            </div>
+          </div>
+          <p id="area-help" class="micro-hint">Можно использовать дробное значение, например 80,5</p>
+          <p id="area-error" class="field-error" hidden></p>
+        </fieldset>
+
+        <button class="generate-button" type="submit">
+          <span class="button-label">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>
+            Сформировать 2 файла
+          </span>
+          <span class="button-loading" aria-hidden="true"><span></span> Собираем документы…</span>
+        </button>
+      </form>
+
+      <aside class="summary-card" aria-labelledby="summary-title">
+        <div class="summary-heading">
+          <div>
+            <span class="summary-kicker">Проверка перед сборкой</span>
+            <h2 id="summary-title">Ваш комплект</h2>
+          </div>
+          <div class="summary-actions">
+            <span class="file-count">2 файла</span>
+            <form action="/logout" method="post">
+              <button class="logout-button" type="submit">Выйти</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="document-list">
+          <div class="document-row">
+            <span class="file-icon docx" aria-hidden="true">W</span>
+            <span><strong>Техническая спецификация</strong><small>DOCX · редактируемый файл</small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <div class="document-row">
+            <span class="file-icon pdf" aria-hidden="true">PDF</span>
+            <span><strong>Обоснование + 3 КП</strong><small>PDF · 7 страниц, с печатями</small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="price-section">
+          <div class="section-label"><span>Расчёт предложений</span><span>Без НДС</span></div>
+          <div class="price-table" role="table" aria-label="Расчёт коммерческих предложений">
+            <div class="price-row" role="row">
+              <span role="cell"><i class="vendor-dot dot-one" aria-hidden="true"></i>ИП Абдихалыков<small>25 000 ₸ / м²</small></span>
+              <strong id="total-1" role="cell">2 000 000 ₸</strong>
+            </div>
+            <div class="price-row" role="row">
+              <span role="cell"><i class="vendor-dot dot-two" aria-hidden="true"></i>ИП Әбдіқұл<small>27 000 ₸ / м²</small></span>
+              <strong id="total-2" role="cell">2 160 000 ₸</strong>
+            </div>
+            <div class="price-row" role="row">
+              <span role="cell"><i class="vendor-dot dot-three" aria-hidden="true"></i>ТОО Архиспецснабмонтаж<small>29 000 ₸ / м²</small></span>
+              <strong id="total-3" role="cell">2 320 000 ₸</strong>
+            </div>
+          </div>
+        </div>
+
+        <div id="result" class="result-panel" role="status" aria-live="polite" hidden>
+          <div class="result-title">
+            <span aria-hidden="true">✓</span>
+            <div><strong>Готово — 2 файла</strong><small id="result-meta"></small></div>
+          </div>
+          <div id="download-list" class="download-list"></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
