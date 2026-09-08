@@ -5,6 +5,7 @@ const decrease = document.querySelector('#decrease');
 const increase = document.querySelector('#increase');
 const submitButton = form.querySelector('button[type="submit"]');
 const result = document.querySelector('#result');
+const resultStatus = document.querySelector('#result-status');
 const resultMeta = document.querySelector('#result-meta');
 const downloadList = document.querySelector('#download-list');
 const rates = [25000, 27000, 29000];
@@ -83,7 +84,7 @@ form.addEventListener('submit', async (event) => {
     if (!response.ok) throw new Error(payload.error || 'Не удалось сформировать документы');
 
     downloadList.replaceChildren();
-    payload.files.forEach((file) => {
+    const downloadLinks = payload.files.map((file) => {
       const link = document.createElement('a');
       link.className = 'download-link';
       link.href = file.url;
@@ -94,10 +95,15 @@ form.addEventListener('submit', async (event) => {
       badge.textContent = file.kind;
       link.append(label, badge);
       downloadList.append(link);
+      return link;
     });
+    resultStatus.textContent = 'Готово — загрузка началась';
     resultMeta.textContent = `${payload.ktru} · ${payload.area} м²`;
     result.hidden = false;
     result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    downloadLinks.forEach((link, index) => {
+      window.setTimeout(() => link.click(), index * 350);
+    });
   } catch (error) {
     showError(error.message);
   } finally {
