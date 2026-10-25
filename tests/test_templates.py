@@ -103,6 +103,12 @@ class TemplateTests(unittest.TestCase):
                         self.assertFalse(document._element.xpath('.//w:highlight'))
                         self.assertEqual(media_of(source), media_of(target))
                         self.assertFalse(document._element.xpath(".//wp:anchor[@behindDoc='1'][wp:extent[@cy > 10000000]]"))
+                        if supplier['key'] == 'sarsenova':
+                            for cell in document.tables[0].rows[0].cells:
+                                for paragraph in cell.paragraphs:
+                                    for run in paragraph.runs:
+                                        self.assertEqual(run.font.name, 'Arial')
+                                        self.assertEqual(run.font.size.pt, 11)
 
     def test_all_area_justifications_have_current_bilingual_price_lists(self):
         with TemporaryDirectory() as directory:

@@ -318,6 +318,17 @@ def update_area_offer(source: Path, destination: Path, provider: str, area: Deci
                 set_paragraph_text(paragraph, f'Итоговая стоимость: {decimal_label(total)} тенге.')
         if provider == 'sarsenova':
             remove_empty_spacers(doc)
+            # The source header inherits a theme font; Linux substitutes it
+            # differently from Word/macOS. Explicit metrics keep the address
+            # and bank details inside the original letterhead background.
+            for cell in doc.tables[0].rows[0].cells:
+                for paragraph in cell.paragraphs:
+                    paragraph.paragraph_format.space_before = Pt(0)
+                    paragraph.paragraph_format.space_after = Pt(0)
+                    paragraph.paragraph_format.line_spacing = 1.0
+                    for run in paragraph.runs:
+                        run.font.name = 'Arial'
+                        run.font.size = Pt(11)
             for paragraph in doc.paragraphs:
                 paragraph.paragraph_format.space_before = Pt(0)
                 paragraph.paragraph_format.space_after = Pt(3)
