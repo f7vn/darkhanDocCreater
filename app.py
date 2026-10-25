@@ -44,6 +44,12 @@ RATES = {
     "archi": Decimal("29000"),
 }
 
+COMBINED_AREA_RATES = {
+    "best": Decimal("25000"),
+    "nalibai": Decimal("27000"),
+    "archi": Decimal("29000"),
+}
+
 KTRU = {
     "aesthetic": {
         "label": "Эстетическое оформление",
@@ -78,6 +84,10 @@ KTRU = {
         "abdykhalykov": "Нанесение надписей и изображений на объекты",
         "archi": "Нанесение надписей и изображений",
     },
+    "combined": {
+        "label": "Декоративно-отделочные работы + стенды",
+        "short": "Декор + стенды",
+    },
 }
 
 CAP_TOTAL = Decimal("2162500")
@@ -107,6 +117,33 @@ def parse_area(raw: object) -> Decimal:
         raise ValueError("Площадь не может превышать 100 000 м²")
     if value.as_tuple().exponent < -2:
         raise ValueError("Используйте не более двух знаков после запятой")
+    return value
+
+
+def parse_count(raw: object) -> int:
+    text = str(raw).strip().replace(" ", "")
+    if not re.fullmatch(r"\d+", text):
+        raise ValueError("Введите количество стендов целым числом")
+    value = int(text)
+    if value <= 0:
+        raise ValueError("Количество стендов должно быть больше нуля")
+    if value > 10000:
+        raise ValueError("Количество стендов не может превышать 10 000")
+    return value
+
+
+def parse_money(raw: object, provider: str) -> Decimal:
+    text = str(raw).strip().replace(" ", "").replace(",", ".")
+    try:
+        value = Decimal(text)
+    except InvalidOperation as exc:
+        raise ValueError(f"Укажите цену стенда для {provider}") from exc
+    if value <= 0:
+        raise ValueError(f"Цена стенда для {provider} должна быть больше нуля")
+    if value > Decimal("100000000"):
+        raise ValueError(f"Цена стенда для {provider} слишком велика")
+    if value.as_tuple().exponent < -2:
+        raise ValueError("В цене можно использовать не более двух знаков после запятой")
     return value
 
 
@@ -453,6 +490,169 @@ def create_offer_archi(destination: Path, area: Decimal, total: Decimal, kind: d
     source.close()
 
 
+def add_labeled_line(paragraph, label: str, value: str, break_before: bool = False) -> None:
+    if break_before:
+        paragraph.add_run("\n")
+    label_run = paragraph.add_run(label)
+    label_run.bold = True
+    label_run.font.name = "Times New Roman"
+    value_run = paragraph.add_run(value)
+    value_run.font.name = "Times New Roman"
+
+
+def update_combined_specification(source: Path, destination: Path, area: Decimal, stand_count: int) -> None:
+    doc = Document(source)
+    for table in doc.tables:
+        if len(table.rows) < 3 or len(table.columns) < 4:
+            continue
+        set_paragraph_text(table.cell(1, 3).paragraphs[0], decimal_label(area))
+        set_paragraph_text(table.cell(2, 3).paragraphs[0], str(stand_count))
+    doc.save(destination)
+
+
+def update_combined_justification(source: Path, destination: Path, minimum_total: Decimal) -> None:
+    doc = Document(source)
+    value = decimal_label(minimum_total)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    text = paragraph.text
+                    if "________" not in text:
+                        continue
+                    updated = re.sub(r"_{4,}", value, text)
+                    if minimum_total > CAP_TOTAL:
+                        updated = updated.replace("не превышает", "превышает")
+                        updated = updated.replace("аспайды", "асады")
+                    set_paragraph_text(paragraph, updated)
+    doc.save(destination)
+
+
+def update_combined_offer_best(
+    source: Path,
+    destination: Path,
+    area: Decimal,
+    stand_count: int,
+    stand_rate: Decimal,
+    total: Decimal,
+) -> None:
+    doc = Document(source)
+    for paragraph_index, paragraph in enumerate(doc.paragraphs):
+        if paragraph.text.startswith("Общая площадь:"):
+            paragraph.clear()
+            add_labeled_line(paragraph, "Общая площадь: ", f"{decimal_label(area)} м²")
+            add_labeled_line(
+                paragraph,
+                "Стоимость работ за 1 м²: ",
+                f"{decimal_label(COMBINED_AREA_RATES['best'])} тенге",
+                break_before=True,
+            )
+            for run in paragraph.runs:
+                run.font.size = Pt(11)
+        elif paragraph.text.startswith("Стоимость стенда"):
+            paragraph.clear()
+            add_labeled_line(
+                paragraph,
+                "Стенды: ",
+                f"{stand_count} шт. × {decimal_label(stand_rate)} = {decimal_label(stand_rate * stand_count)} тенге",
+            )
+            add_labeled_line(
+                paragraph,
+                "Общая стоимость: ",
+                f"{decimal_label(total)} тенге",
+                break_before=True,
+            )
+            for run in paragraph.runs:
+                run.font.size = Pt(11)
+        elif paragraph.text.strip().startswith("BEST PRODUCTION") or 19 <= paragraph_index <= 24:
+            paragraph.paragraph_format.space_before = Pt(0)
+            paragraph.paragraph_format.space_after = Pt(0)
+            paragraph.paragraph_format.line_spacing = Pt(8.5)
+            for run in paragraph.runs:
+                run.font.size = Pt(7.5)
+    for paragraph in reversed(doc.paragraphs):
+        if paragraph.text.strip():
+            break
+        paragraph._element.getparent().remove(paragraph._element)
+    doc.save(destination)
+
+
+def update_combined_offer_nalibai(
+    source: Path,
+    destination: Path,
+    area: Decimal,
+    stand_count: int,
+    stand_rate: Decimal,
+    total: Decimal,
+) -> None:
+    doc = Document(source)
+    table = doc.tables[0]
+    values = {
+        2: (
+            f"{decimal_label(area)} м² × {decimal_label(COMBINED_AREA_RATES['nalibai'])} "
+            f"тенге = {decimal_label(COMBINED_AREA_RATES['nalibai'] * area)} тенге"
+        ),
+        3: (
+            f"{stand_count} шт. × {decimal_label(stand_rate)} тенге = "
+            f"{decimal_label(stand_rate * stand_count)} тенге"
+        ),
+        4: f"{decimal_label(total)} тенге без НДС",
+    }
+    for row_index, value in values.items():
+        paragraph = table.cell(row_index, 1).paragraphs[0]
+        set_paragraph_text(paragraph, value)
+        for run in paragraph.runs:
+            run.font.size = Pt(10)
+    for paragraph in reversed(doc.paragraphs):
+        if paragraph.text.strip():
+            break
+        paragraph._element.getparent().remove(paragraph._element)
+    doc.save(destination)
+
+
+def create_combined_offer_archi(
+    destination: Path,
+    area: Decimal,
+    stand_count: int,
+    stand_rate: Decimal,
+    total: Decimal,
+) -> None:
+    source = fitz.open(TEMPLATE_DIR / "combined-offer-archi.pdf")
+    page = source[0]
+    erase(
+        page,
+        fitz.Rect(400, 1892, 2180, 2034),
+        fitz.Rect(400, 2060, 1950, 2150),
+    )
+    textbox(
+        page,
+        fitz.Rect(420, 1900, 2160, 1968),
+        f"Объем отделочных работ: {decimal_label(area)} м²",
+        48.0,
+        32.0,
+    )
+    textbox(
+        page,
+        fitz.Rect(420, 1960, 2210, 2035),
+        (
+            f"Стенды: {stand_count} шт. × {decimal_label(stand_rate)} = "
+            f"{decimal_label(stand_rate * stand_count)} тенге"
+        ),
+        45.0,
+        29.0,
+    )
+    textbox(
+        page,
+        fitz.Rect(420, 2070, 1900, 2142),
+        f"Общая стоимость работ: {decimal_label(total)} тенге",
+        47.0,
+        30.0,
+        bold=True,
+    )
+    save_flattened_a4(source, destination)
+    source.close()
+
+
 def convert_docx_to_pdf(docx_path: Path, output_dir: Path) -> Path:
     soffice = shutil.which("soffice") or "/Applications/LibreOffice.app/Contents/MacOS/soffice"
     if not Path(soffice).exists():
@@ -504,9 +704,102 @@ def merge_pdfs(destination: Path, sources: list[Path]) -> None:
         result.close()
 
 
-def generate_package(ktru_key: str, area: Decimal) -> dict:
+def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict[str, Decimal]) -> dict:
+    job_id = uuid.uuid4().hex[:12]
+    job_dir = GENERATED_DIR / job_id
+    job_dir.mkdir(parents=True)
+    area_slug = slug_area(area)
+    spec_name = f"Техническая_спецификация_{area_slug}м2_{stand_count}шт.docx"
+    bundle_name = f"Обоснование_и_3_КП_{area_slug}м2_{stand_count}шт.pdf"
+    spec_path = job_dir / spec_name
+    bundle_path = job_dir / bundle_name
+
+    totals = {
+        provider: COMBINED_AREA_RATES[provider] * area + stand_rates[provider] * stand_count
+        for provider in COMBINED_AREA_RATES
+    }
+
+    justification_docx = job_dir / "Обоснование.docx"
+    update_combined_justification(
+        TEMPLATE_DIR / "combined-justification.docx",
+        justification_docx,
+        totals["best"],
+    )
+    update_combined_specification(
+        TEMPLATE_DIR / "combined-specification.docx",
+        spec_path,
+        area,
+        stand_count,
+    )
+
+    best_docx = job_dir / "КП_Best_Production.docx"
+    nalibai_docx = job_dir / "КП_Налибай.docx"
+    update_combined_offer_best(
+        TEMPLATE_DIR / "combined-offer-best.docx",
+        best_docx,
+        area,
+        stand_count,
+        stand_rates["best"],
+        totals["best"],
+    )
+    update_combined_offer_nalibai(
+        TEMPLATE_DIR / "combined-offer-nalibai.docx",
+        nalibai_docx,
+        area,
+        stand_count,
+        stand_rates["nalibai"],
+        totals["nalibai"],
+    )
+
+    justification_pdf = convert_docx_to_pdf(justification_docx, job_dir)
+    best_pdf = convert_docx_to_pdf(best_docx, job_dir)
+    nalibai_pdf = convert_docx_to_pdf(nalibai_docx, job_dir)
+    archi_pdf = job_dir / "КП_Архи.pdf"
+    create_combined_offer_archi(
+        archi_pdf,
+        area,
+        stand_count,
+        stand_rates["archi"],
+        totals["archi"],
+    )
+    merge_pdfs(bundle_path, [justification_pdf, best_pdf, nalibai_pdf, archi_pdf])
+
+    metadata = {
+        "jobId": job_id,
+        "ktru": KTRU["combined"]["label"],
+        "area": decimal_label(area),
+        "standCount": stand_count,
+        "files": [
+            {
+                "name": spec_name,
+                "kind": "DOCX",
+                "description": "Техспецификация с площадью и стендами",
+                "url": f"/download/{job_id}/{quote(spec_name)}",
+            },
+            {
+                "name": bundle_name,
+                "kind": "PDF",
+                "description": "Обоснование и 3 коммерческих предложения",
+                "url": f"/download/{job_id}/{quote(bundle_name)}",
+            },
+        ],
+    }
+    (job_dir / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    return metadata
+
+
+def generate_package(
+    ktru_key: str,
+    area: Decimal,
+    stand_count: int | None = None,
+    stand_rates: dict[str, Decimal] | None = None,
+) -> dict:
     if ktru_key not in KTRU:
         raise ValueError("Выберите вид закупки из списка")
+    if ktru_key == "combined":
+        if stand_count is None or stand_rates is None:
+            raise ValueError("Укажите количество и цены стендов")
+        return generate_combined_package(area, stand_count, stand_rates)
     kind = KTRU[ktru_key]
     job_id = uuid.uuid4().hex[:12]
     job_dir = GENERATED_DIR / job_id
@@ -689,7 +982,17 @@ class AppHandler(BaseHTTPRequestHandler):
                 raise ValueError("Некорректный запрос")
             payload = json.loads(self.rfile.read(length))
             area = parse_area(payload.get("area", ""))
-            result = generate_package(str(payload.get("ktru", "")), area)
+            ktru_key = str(payload.get("ktru", ""))
+            stand_count = None
+            stand_rates = None
+            if ktru_key == "combined":
+                stand_count = parse_count(payload.get("standCount", ""))
+                stand_rates = {
+                    "best": parse_money(payload.get("standPriceBest", ""), "Best Production"),
+                    "nalibai": parse_money(payload.get("standPriceNalibai", ""), "ИП Нәлібай"),
+                    "archi": parse_money(payload.get("standPriceArchi", ""), "ТОО Архи"),
+                }
+            result = generate_package(ktru_key, area, stand_count, stand_rates)
             self.send_json(result, HTTPStatus.CREATED)
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)

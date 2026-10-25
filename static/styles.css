@@ -16,6 +16,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html { min-width: 320px; background: var(--paper); }
 
@@ -118,9 +119,39 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .area-stepper button { width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 11px; background: white; box-shadow: 0 4px 12px rgba(29,38,33,.055); cursor: pointer; font-size: 20px; line-height: 1; transition-property: border-color, background-color, color, transform, box-shadow; transition-duration: 120ms; }
 .area-stepper button:hover { border-color: #aebbb4; color: var(--green-dark); background: #f6faf7; box-shadow: 0 6px 14px rgba(29,38,33,.08); }
 .area-stepper button:active { transform: scale(.96); }
-.micro-hint { margin: 9px 0 0 4px; color: #7b837e; font-size: 11px; }
+.micro-hint { margin: 9px 0 0 4px; color: var(--muted); font-size: 12px; }
 .field-error { margin: 9px 0 0 4px; color: var(--red); font-size: 12px; font-weight: 650; }
 .area-control:has(input[aria-invalid="true"]) .area-input-frame { border-color: var(--red); box-shadow: 0 0 0 3px rgba(163,61,53,.1); }
+
+.stand-fields { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
+.stand-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; margin-bottom: 13px; }
+.stand-heading strong { font-family: Georgia, serif; font-size: 17px; }
+.stand-heading span { color: var(--muted); font-size: 12px; line-height: 1.4; text-align: right; }
+.count-input-frame {
+  min-height: 46px;
+  padding: 6px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px auto;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfcf9;
+  cursor: text;
+}
+.count-input-frame:focus-within, .stand-price-input:focus-within { border-color: var(--green); background: white; box-shadow: 0 0 0 3px rgba(21,95,71,.13); }
+.count-input-frame > span, .stand-price-field > span:first-child { color: var(--muted); font-size: 12px; font-weight: 750; }
+.count-input-frame input, .stand-price-input input { min-width: 0; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-weight: 750; font-variant-numeric: tabular-nums; }
+.count-input-frame input { width: 100%; font-size: 18px; text-align: right; }
+.count-input-frame em, .stand-price-input em { color: var(--muted); font-size: 12px; font-style: normal; font-weight: 750; white-space: nowrap; }
+.stand-price-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stand-price-field { min-width: 0; display: grid; gap: 6px; }
+.stand-price-field > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stand-price-input { min-height: 46px; padding: 7px 10px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 11px; background: #fbfcf9; }
+.stand-price-input input { width: 100%; font-size: 15px; text-align: right; }
+.stand-price-input input::placeholder { color: var(--muted); font-weight: 600; }
+.stand-fields:has(input[aria-invalid="true"]) .stand-price-input:has(input[aria-invalid="true"]),
+.stand-fields:has(input[aria-invalid="true"]) .count-input-frame:has(input[aria-invalid="true"]) { border-color: var(--red); box-shadow: 0 0 0 3px rgba(163,61,53,.1); }
 
 .generate-button {
   width: 100%; min-height: 58px; margin-top: 32px; padding: 15px 20px; border: 0; border-radius: 13px; color: white; background: var(--green); box-shadow: 0 10px 24px rgba(21,95,71,.22); cursor: pointer; font-weight: 750;
@@ -162,6 +193,7 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .price-row { min-height: 67px; padding: 13px 1px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e9e7e0; }
 .price-row:last-child { border-bottom: 0; }
 .price-row > span { position: relative; padding-inline-start: 18px; min-width: 0; font-size: 12px; font-weight: 700; overflow-wrap: break-word; }
+.price-row > span > b { font: inherit; }
 .price-row small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; font-weight: 500; }
 .price-row > strong { flex: none; font-size: 13px; font-variant-numeric: tabular-nums; }
 .vendor-dot { position: absolute; inset-block-start: 4px; inset-inline-start: 1px; width: 8px; height: 8px; border-radius: 99px; }
@@ -198,6 +230,9 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
   .area-input-frame { padding-inline: 12px; gap: 8px; }
   .area-stepper { gap: 6px; }
   .area-stepper button { width: 44px; height: 44px; }
+  .stand-heading { display: block; }
+  .stand-heading span { display: block; margin-top: 5px; text-align: left; }
+  .stand-price-grid { grid-template-columns: 1fr; gap: 10px; }
 }
 
 .login-page { display: grid; place-items: center; padding: 24px; }
