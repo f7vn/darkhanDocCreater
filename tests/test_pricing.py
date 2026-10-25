@@ -1,11 +1,26 @@
 import unittest
 from decimal import Decimal
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import app
+from docx import Document
 
 
 class PricingTests(unittest.TestCase):
+    def test_nalibai_background_removed_and_stamp_preserved(self):
+        with TemporaryDirectory() as directory:
+            destination = Path(directory) / 'offer.docx'
+            app.update_combined_offer_nalibai(
+                app.TEMPLATE_DIR / 'combined-offer-nalibai.docx', destination,
+                Decimal('80'), 2, Decimal('107000'), Decimal('2354000'), Decimal('26750'),
+            )
+            document = Document(destination)
+            self.assertFalse(document._element.xpath(".//wp:anchor[@behindDoc='1']"))
+            self.assertEqual(len(document.inline_shapes), 1)
+            self.assertIn('2 354 000', document.tables[0].cell(4, 1).text)
+
     def test_localized_number_grouping(self):
         self.assertEqual(app.parse_area('1\u00a0234,5'), Decimal('1234.5'))
         self.assertEqual(app.parse_count('1\u202f000'), 1000)

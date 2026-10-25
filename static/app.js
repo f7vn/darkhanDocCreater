@@ -114,6 +114,19 @@ areaInput.addEventListener('keydown', (event) => {
   stepArea(event.key === 'ArrowUp' ? 1 : -1);
 });
 form.querySelectorAll('input[name="ktru"]').forEach((input) => input.addEventListener('change', updateMode));
+allInputs.forEach((input) => {
+  let selectOnNextClick = false;
+  input.closest('label').addEventListener('pointerdown', () => {
+    selectOnNextClick = document.activeElement !== input;
+  });
+  input.addEventListener('focus', () => input.select());
+  input.addEventListener('click', () => {
+    if (selectOnNextClick) {
+      input.select();
+      selectOnNextClick = false;
+    }
+  });
+});
 allInputs.forEach((input) => input.addEventListener('input', () => {
   showError();
   result.hidden = true;

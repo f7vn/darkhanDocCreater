@@ -622,6 +622,18 @@ def update_combined_offer_nalibai(
     area_rate: Decimal,
 ) -> None:
     doc = Document(source)
+    # The full-page background contains the gray sidebar. The stamp is a
+    # separate inline image, so removing only page-sized background anchors
+    # preserves the supplier's text, table, and stamp.
+    section = doc.sections[0]
+    for anchor in doc._element.xpath(".//wp:anchor[@behindDoc='1']"):
+        extent = anchor.find(qn('wp:extent'))
+        if extent is not None and (
+            int(extent.get('cx', '0')) >= section.page_width * 0.9
+            and int(extent.get('cy', '0')) >= section.page_height * 0.9
+        ):
+            drawing = anchor.getparent()
+            drawing.getparent().remove(drawing)
     table = doc.tables[0]
     values = {
         2: (
