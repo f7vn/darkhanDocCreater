@@ -110,7 +110,7 @@ def slug_area(value: Decimal) -> str:
 
 
 def parse_area(raw: object) -> Decimal:
-    text = str(raw).strip().replace(" ", "").replace(",", ".")
+    text = re.sub(r"\s", "", str(raw)).replace(",", ".")
     try:
         value = Decimal(text)
     except InvalidOperation as exc:
@@ -125,7 +125,7 @@ def parse_area(raw: object) -> Decimal:
 
 
 def parse_count(raw: object) -> int:
-    text = str(raw).strip().replace(" ", "")
+    text = re.sub(r"\s", "", str(raw))
     if not re.fullmatch(r"\d+", text):
         raise ValueError("Введите количество стендов целым числом")
     value = int(text)
@@ -153,7 +153,7 @@ def parse_money(raw: object, label: str) -> Decimal:
 
 def parse_markup(raw: object) -> Decimal:
     try:
-        value = Decimal(str(raw).strip().replace(",", "."))
+        value = Decimal(re.sub(r"\s", "", str(raw)).replace(",", "."))
     except InvalidOperation as exc:
         raise ValueError("Введите надбавку конкурента в процентах") from exc
     if not value.is_finite() or value < 0 or value > 1000:

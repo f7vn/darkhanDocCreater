@@ -6,6 +6,12 @@ import app
 
 
 class PricingTests(unittest.TestCase):
+    def test_localized_number_grouping(self):
+        self.assertEqual(app.parse_area('1\u00a0234,5'), Decimal('1234.5'))
+        self.assertEqual(app.parse_count('1\u202f000'), 1000)
+        self.assertEqual(app.parse_money('100\u00a0000,50', 'цену'), Decimal('100000.50'))
+        self.assertEqual(app.parse_markup('1\u00a0000'), Decimal('1000'))
+
     def test_default_competitor_percentages(self):
         actual = app.supplier_rates(Decimal('100000'), (Decimal('7'), Decimal('15')), ('base', 'first', 'second'))
         self.assertEqual(actual, {'base': Decimal('100000'), 'first': Decimal('107000'), 'second': Decimal('115000')})
