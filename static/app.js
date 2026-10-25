@@ -13,11 +13,7 @@ const resultStatus = document.querySelector('#result-status');
 const resultMeta = document.querySelector('#result-meta');
 const downloadList = document.querySelector('#download-list');
 const allInputs = [areaInput, areaPriceInput, standCountInput, standPriceInput, ...markupInputs];
-const vendors = {
-  default: ['ИП Абдихалыков', 'ИП Әбдіқұл', 'ТОО Архиспецснабмонтаж'],
-  combined: ['Best Production', 'ИП Нәлібай', 'ТОО Архи'],
-  stands: ['ИП Әбдіқұл', 'ТОО Торговая сеть Казахстан', 'ИП Андрей и Ко'],
-};
+const workTypes = JSON.parse(document.querySelector('#work-types').textContent);
 
 function selectedKtru() {
   return form.querySelector('input[name="ktru"]:checked').value;
@@ -62,7 +58,7 @@ function updateMode() {
   standFields.hidden = !['stands', 'combined'].includes(mode);
   standFields.classList.toggle('standalone', mode === 'stands');
   standFields.querySelectorAll('input').forEach((input) => { input.disabled = standFields.hidden; });
-  const names = vendors[mode] || vendors.default;
+  const names = workTypes[mode].suppliers;
   names.forEach((name, index) => { document.querySelector(`#vendor-${index + 1}`).textContent = name; });
   markupInputs.forEach((input, index) => { input.setAttribute('aria-label', `Надбавка: ${names[index + 1]}`); });
   showError();

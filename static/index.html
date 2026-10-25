@@ -17,7 +17,7 @@
       <form id="generator-form" class="form-card" novalidate>
         <fieldset class="field-group">
           <legend><span>1</span> Вид закупки по КТРУ</legend>
-          <p class="field-hint">Содержание и формулировки документов изменятся автоматически.</p>
+          <p class="field-hint">Для каждого вида работ — свои шаблоны документов и поставщики.</p>
           <div class="option-list">
             <label class="option-card">
               <input type="radio" name="ktru" value="aesthetic" checked>
@@ -146,11 +146,11 @@
           <div class="section-label"><span>Расчёт предложений</span><span>Без НДС</span></div>
           <div class="price-table" role="table" aria-label="Расчёт коммерческих предложений">
             <div class="price-row" role="row">
-              <span role="cell"><i class="vendor-dot dot-one" aria-hidden="true"></i><b id="vendor-1">ИП Абдихалыков</b><small id="rate-1">25 000 ₸ / м²</small></span>
+              <span role="cell"><i class="vendor-dot dot-one" aria-hidden="true"></i><b id="vendor-1">Best Production</b><small id="rate-1">25 000 ₸ / м²</small></span>
               <strong id="total-1" role="cell">—</strong>
             </div>
             <div class="price-row" role="row">
-              <span role="cell"><i class="vendor-dot dot-two" aria-hidden="true"></i><b id="vendor-2">ИП Әбдіқұл</b><label class="markup-control"><span>Надбавка</span><input id="markup-1" name="markup1" form="generator-form" type="text" inputmode="decimal" value="7" autocomplete="off" aria-label="Надбавка первого конкурента" aria-describedby="form-error"><span>%</span></label><small id="rate-2">26 750 ₸ / м²</small></span>
+              <span role="cell"><i class="vendor-dot dot-two" aria-hidden="true"></i><b id="vendor-2">ИП Нәлібай</b><label class="markup-control"><span>Надбавка</span><input id="markup-1" name="markup1" form="generator-form" type="text" inputmode="decimal" value="7" autocomplete="off" aria-label="Надбавка первого конкурента" aria-describedby="form-error"><span>%</span></label><small id="rate-2">26 750 ₸ / м²</small></span>
               <strong id="total-2" role="cell">—</strong>
             </div>
             <div class="price-row" role="row">
@@ -171,6 +171,7 @@
       </aside>
     </div>
   </main>
-  <script src="/static/app.js" defer></script>
+  <script id="work-types" type="application/json">__WORK_TYPES__</script>
+  <script src="/static/app.js?v=templates-20261025" defer></script>
 </body>
 </html>

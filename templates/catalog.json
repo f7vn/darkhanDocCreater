@@ -1,0 +1,102 @@
+{
+  "aesthetic": {
+    "label": "Эстетическое оформление",
+    "short": "Эстетическое оформление",
+    "quantity": "area",
+    "source_folder": "1) Эстетическое оформление",
+    "specification": "aesthetic/specification.docx",
+    "justification": "aesthetic/justification.docx",
+    "suppliers": [
+      {"key": "best", "name": "Best Production", "offer": "aesthetic/offer-best.docx"},
+      {"key": "nalibai", "name": "ИП Нәлібай", "offer": "aesthetic/offer-nalibai.docx"},
+      {"key": "archi", "name": "ТОО Архиспецснабмонтаж", "offer": "aesthetic/offer-archi.pdf"}
+    ],
+    "source_files": {
+      "specification.docx": "ТС_Эстет оформление-_____м2.docx",
+      "justification.docx": "Обоснование для пункта плана ______м2.doc",
+      "offer-best.docx": "КП-ИП BEST_PRODUCTION- эстет.оформ._______м2.docx",
+      "offer-nalibai.docx": "КП_ИП Нәлібай Н.Р. ________ м2.docx",
+      "offer-archi.pdf": "КП ТОО Архи______м2.pdf"
+    }
+  },
+  "finishing": {
+    "label": "Декоративно-отделочные работы",
+    "short": "Декоративно-отделочные работы",
+    "quantity": "area",
+    "source_folder": "2) Декоративно-отдедочные работы",
+    "specification": "finishing/specification.docx",
+    "justification": "finishing/justification.docx",
+    "suppliers": [
+      {"key": "abdykhalykov", "name": "ИП Абдыхалыков", "offer": "finishing/offer-abdykhalykov.docx"},
+      {"key": "enzi", "name": "ENZI", "offer": "finishing/offer-enzi.docx"},
+      {"key": "sarsenova", "name": "ИП Сарсенова", "offer": "finishing/offer-sarsenova.docx"}
+    ],
+    "source_files": {
+      "specification.docx": "Техническая_спецификация_декор._____м2.docx",
+      "justification.docx": "Обоснование для пункта плана_Декор_____м2.doc",
+      "offer-abdykhalykov.docx": "КП Абдыхалыков-Декор____м2.docx",
+      "offer-enzi.docx": "КП ENZI_Декор.______м2.docx",
+      "offer-sarsenova.docx": "КомПред ИП Сарсенова_Декор______м2.docx"
+    }
+  },
+  "stands": {
+    "label": "Услуги по изготовлению стендов",
+    "short": "Изготовление стендов",
+    "quantity": "count",
+    "source_folder": "3) Работы по изготовлению стендов",
+    "specification": "stands/specification.docx",
+    "justification": "stands/justification.docx",
+    "suppliers": [
+      {"key": "abdicul", "name": "ИП Әбдіқұл", "offer": "stands/offer-abdicul.docx"},
+      {"key": "trade", "name": "ТОО Торговая сеть Казахстан", "offer": "stands/offer-trade.docx"},
+      {"key": "andrey", "name": "ИП Андрей и Ко", "offer": "stands/offer-andrey.pdf"}
+    ],
+    "source_files": {
+      "specification.docx": "ТС_Изготовление стендов.docx",
+      "justification.docx": "Обоснование изготовление стендов.docx",
+      "offer-abdicul.docx": "КП Абдикул-Стенды         штук.docx",
+      "offer-trade.docx": "КП ТОО Торговая сеть Казахстан- Стенды       шт.docx",
+      "offer-andrey.pdf": "КП Андрей-стенды______шт.pdf"
+    }
+  },
+  "graphics": {
+    "label": "Нанесение надписей и изображений",
+    "short": "Нанесение надписей и изображений на объекты",
+    "quantity": "area",
+    "source_folder": "4) Услуги по нанесению надписи и изображений",
+    "specification": "graphics/specification.docx",
+    "justification": "graphics/justification.docx",
+    "suppliers": [
+      {"key": "best", "name": "Best Production", "offer": "graphics/offer-best.docx"},
+      {"key": "nalibai", "name": "ИП Нәлібай", "offer": "graphics/offer-nalibai.docx"},
+      {"key": "archi", "name": "ТОО Архиспецснабмонтаж", "offer": "graphics/offer-archi.pdf"}
+    ],
+    "source_files": {
+      "specification.docx": "ТС_Нанесение надписей.docx",
+      "justification.docx": "Обоснование для пункта плана ______м2.doc",
+      "offer-best.docx": "КП-ИП BEST_PRODUCTION- нанесение на стены_______м2.docx",
+      "offer-nalibai.docx": "КП_ИП Нәлібай Н.Р. ________ м2.docx",
+      "offer-archi.pdf": "КП ТОО Архи_надпись на стены______м2.pdf"
+    }
+  },
+  "combined": {
+    "label": "Декоративно-отделочные работы + стенды",
+    "short": "Декор + стенды",
+    "quantity": "both",
+    "source_folder": "5) Декор+стенды",
+    "specification": "combined/specification.docx",
+    "justification": "combined/justification.docx",
+    "suppliers": [
+      {"key": "best", "name": "Best Production", "offer": "combined/offer-best.docx"},
+      {"key": "nalibai", "name": "ИП Нәлібай", "offer": "combined/offer-nalibai.docx"},
+      {"key": "archi", "name": "ТОО Архи", "offer": "combined/offer-archi.pdf"}
+    ],
+    "source_files": {
+      "specification.docx": "Техническая_спецификация_Декор+стенд.docx",
+      "justification.docx": "Обоснование для пункта плана_Декор+стенд.doc",
+      "offer-best.docx": "КП-ИП BEST_PRODUCTION- Декор+стенд.docx",
+      "offer-nalibai.docx": "КП_ИП Нәлібай Н.Р. Декор+стенд.docx",
+      "offer-archi.pdf": "КП ТОО Архи.pdf"
+    }
+  }
+}

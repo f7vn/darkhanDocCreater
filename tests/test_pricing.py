@@ -31,7 +31,7 @@ class PricingTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             destination = Path(directory) / 'specification.docx'
             app.update_combined_specification(
-                app.TEMPLATE_DIR / 'combined-specification.docx', destination,
+                app.TEMPLATE_DIR / app.KTRU['combined']['specification'], destination,
                 Decimal('32'), 1,
             )
             document = Document(destination)
@@ -45,7 +45,7 @@ class PricingTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             destination = Path(directory) / 'justification.docx'
             app.update_combined_justification(
-                app.TEMPLATE_DIR / 'combined-justification.docx', destination,
+                app.TEMPLATE_DIR / app.KTRU['combined']['justification'], destination,
                 Decimal('900000'),
             )
             document = Document(destination)
@@ -67,7 +67,7 @@ class PricingTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             destination = Path(directory) / 'offer.docx'
             app.update_combined_offer_nalibai(
-                app.TEMPLATE_DIR / 'combined-offer-nalibai.docx', destination,
+                app.TEMPLATE_DIR / 'combined/offer-nalibai.docx', destination,
                 Decimal('80'), 2, Decimal('107000'), Decimal('2354000'), Decimal('26750'),
             )
             document = Document(destination)

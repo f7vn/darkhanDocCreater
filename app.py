@@ -8,7 +8,6 @@ import secrets
 import shutil
 import subprocess
 import tempfile
-import threading
 import uuid
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -24,6 +23,7 @@ from docx.enum.table import WD_ROW_HEIGHT_RULE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
+from docx.text.paragraph import Paragraph
 
 
 ROOT = Path(__file__).resolve().parent
@@ -38,61 +38,23 @@ AUTH_COOKIE_NAME = "docgen_session"
 AUTH_SESSION_TOKEN = secrets.token_urlsafe(32)
 AUTH_SESSION_SECONDS = 8 * 60 * 60
 
-RATES = {
-    "abdykhalykov": Decimal("25000"),
-    "abdicul": Decimal("26750"),
-    "archi": Decimal("28750"),
-}
+KTRU = json.loads((TEMPLATE_DIR / "catalog.json").read_text(encoding="utf-8"))
 
-COMBINED_AREA_RATES = {
-    "best": Decimal("25000"),
-    "nalibai": Decimal("26750"),
-    "archi": Decimal("28750"),
-}
 
-KTRU = {
-    "aesthetic": {
-        "label": "Эстетическое оформление",
-        "short": "Эстетическое оформление",
-        "ru_subject": "услуги по эстетическому оформлению",
-        "ru_genitive": "эстетическому оформлению",
-        "kz_subject": "эстетикалық безендіру қызметтері",
-        "kz_genitive": "эстетикалық безендіру",
-        "abdicul": "Настенная печать с помощью УФ-принтера",
-        "abdykhalykov": "Эстетическое оформление строго в рамках Брендбука Адал Азамат",
-        "archi": "Эстетическое оформление",
-    },
-    "finishing": {
-        "label": "Декоративно-отделочные работы",
-        "short": "Декоративно-отделочные работы",
-        "ru_subject": "декоративно-отделочные работы",
-        "ru_genitive": "декоративно-отделочным работам",
-        "kz_subject": "сәндік-әрлеу жұмыстары",
-        "kz_genitive": "сәндік-әрлеу жұмыстары",
-        "abdicul": "Декоративно-отделочные работы",
-        "abdykhalykov": "Декоративно-отделочные работы",
-        "archi": "Декоративно-отделочные работы",
-    },
-    "graphics": {
-        "label": "Нанесение надписей и изображений",
-        "short": "Нанесение надписей и изображений на объекты",
-        "ru_subject": "услуги по нанесению надписей и изображений на объекты",
-        "ru_genitive": "нанесению надписей и изображений на объекты",
-        "kz_subject": "объектілерге жазулар мен бейнелерді салу қызметтері",
-        "kz_genitive": "объектілерге жазулар мен бейнелерді салу",
-        "abdicul": "Нанесение надписей и изображений на объекты",
-        "abdykhalykov": "Нанесение надписей и изображений на объекты",
-        "archi": "Нанесение надписей и изображений",
-    },
-    "stands": {
-        "label": "Услуги по изготовлению стендов",
-        "short": "Изготовление стендов",
-    },
-    "combined": {
-        "label": "Декоративно-отделочные работы + стенды",
-        "short": "Декор + стенды",
-    },
-}
+def supplier_keys(ktru_key: str) -> tuple[str, str, str]:
+    return tuple(supplier["key"] for supplier in KTRU[ktru_key]["suppliers"])
+
+
+def public_catalog() -> dict:
+    return {
+        key: {"label": kind["label"], "suppliers": [s["name"] for s in kind["suppliers"]]}
+        for key, kind in KTRU.items()
+    }
+
+
+def render_index() -> str:
+    catalog_json = json.dumps(public_catalog(), ensure_ascii=False).replace("<", "\\u003c")
+    return (STATIC_DIR / "index.html").read_text(encoding="utf-8").replace("__WORK_TYPES__", catalog_json)
 
 CAP_TOTAL = Decimal("2162500")
 
@@ -201,67 +163,197 @@ def set_paragraph_text(paragraph, text: str, bold_prefix: str | None = None) -> 
         run.bold = False
 
 
-def update_justification(source: Path, destination: Path, area: Decimal, kind: dict, rates: dict[str, Decimal]) -> None:
-    doc = Document(source)
-    area_text = decimal_label(area)
-    totals = {key: money(rate * area) for key, rate in rates.items()}
+def clear_highlighting(document: Document) -> None:
+    for node in document._element.xpath('.//w:highlight'):
+        node.getparent().remove(node)
 
-    provider_lines_ru = {
-        "Абдихалыков": f"ИП «Абдихалыков»- {decimal_label(rates['abdykhalykov'])} тг за 1 м2 * {area_text} м2= {decimal_label(totals['abdykhalykov'])} тг",
-        "Әбдіқұл": f"ИП «Әбдіқұл»- {decimal_label(rates['abdicul'])} тг за 1 м2 * {area_text} м2= {decimal_label(totals['abdicul'])} тг",
-        "Архиспецснабмонтаж": f"ТОО «Архиспецснабмонтаж»- {decimal_label(rates['archi'])} тг за 1 м2 * {area_text} м2= {decimal_label(totals['archi'])} тг",
+
+def remove_page_backgrounds(document: Document) -> None:
+    """Remove only page-sized gray paper backgrounds, never logos or stamps."""
+    section = document.sections[0]
+    for anchor in document._element.xpath(".//wp:anchor[@behindDoc='1']"):
+        extent = anchor.find(qn('wp:extent'))
+        if extent is not None and (
+            int(extent.get('cx', '0')) >= section.page_width * 0.9
+            and int(extent.get('cy', '0')) >= section.page_height * 0.9
+        ):
+            drawing = anchor.getparent()
+            drawing.getparent().remove(drawing)
+
+
+def remove_empty_spacers(document: Document) -> None:
+    for paragraph in list(document.paragraphs):
+        if (not paragraph.text.strip()
+                and not paragraph._p.xpath('.//w:drawing | .//w:pict | .//w:sectPr')):
+            paragraph._element.getparent().remove(paragraph._element)
+
+
+def company_name(key: str, kazakh: bool = False) -> str:
+    names = {
+        'best': ('ИП «Best Production»', '«Best Production» ЖК'),
+        'nalibai': ('ИП «Нәлібай»', '«Нәлібай» ЖК'),
+        'archi': ('ТОО «Архиспецснабмонтаж»', '«Архиспецснабмонтаж» ЖШС'),
+        'abdykhalykov': ('ИП «Абдыхалыков»', '«Абдыхалыков» ЖК'),
+        'enzi': ('ТОО «ЕНЗИ» (ENZI)', '«ЕНЗИ» (ENZI) ЖШС'),
+        'sarsenova': ('ИП «Сарсенова»', '«Сарсенова» ЖК'),
+        'abdicul': ('ИП «Әбдіқұл»', '«Әбдіқұл» ЖК'),
+        'trade': ('ТОО «Торговая сеть Казахстана»', '«Торговая сеть Казахстана» ЖШС'),
+        'andrey': ('ИП «Андрей и Ко»', '«Андрей и Ко» ЖК'),
     }
-    provider_lines_kz = {
-        "Абдихалыков": f"ЖК «Абдихалыков»- {decimal_label(rates['abdykhalykov'])} тг за 1 м2 * {area_text} м2= {decimal_label(totals['abdykhalykov'])} тг",
-        "Әбдіқұл": f"ЖК «Әбдіқұл»- {decimal_label(rates['abdicul'])} тг за 1 м2 * {area_text} м2= {decimal_label(totals['abdicul'])} тг",
-        "Архиспецснабмонтаж": f"ЖШС «Архиспецснабмонтаж»- {decimal_label(rates['archi'])} тг за 1 м2 * {area_text} м2= {decimal_label(totals['archi'])} тг",
-    }
-    minimum = totals["abdykhalykov"]
-    ru_comparison = "не превышает" if minimum <= CAP_TOTAL else "превышает"
-    kz_comparison = "аспайды" if minimum <= CAP_TOTAL else "асады"
+    return names[key][int(kazakh)]
 
-    for paragraph in doc.paragraphs:
-        text = paragraph.text
-        if "По итогам проведённого анализа" in text:
-            set_paragraph_text(
-                paragraph,
-                "По итогам проведённого анализа установлено, что стоимость услуг по "
-                f"{kind['ru_genitive']} составляет {decimal_label(minimum)} тенге без учета НДС, "
-                f"что {ru_comparison} предельный объем закупа, установленный подпунктом 28 пункта 1 "
-                "статьи 14 Закона — 500 МРП (500 × 4 325 = 2 162 500 тенге).",
-            )
-            continue
-        if "Жүргізілген талдау қорытындысы" in text:
-            set_paragraph_text(
-                paragraph,
-                "Жүргізілген талдау қорытындысы бойынша "
-                f"{kind['kz_genitive']} бойынша қызметтердің құны ҚҚС есептемегенде "
-                f"{decimal_label(minimum)} теңгені құрайтыны анықталды, бұл Заңның 14-бабы "
-                "1-тармағының 28-тармақшасында белгіленген сатып алудың шекті көлемінен "
-                f"{kz_comparison} — 500 МРП (500 × 4 325 = 2 162 500 теңге).",
-            )
-            continue
-        for provider, replacement in provider_lines_ru.items():
-            if provider in text and (text.startswith("ИП") or text.startswith("ТОО")) and "м2" in text:
-                set_paragraph_text(paragraph, replacement)
-                break
-        else:
-            for provider, replacement in provider_lines_kz.items():
-                if provider in text and (text.startswith("ЖК") or text.startswith("ЖШС")) and "м2" in text:
-                    set_paragraph_text(paragraph, replacement)
-                    break
 
+def update_catalog_justification(
+    ktru_key: str, destination: Path, area: Decimal,
+    area_rates: dict[str, Decimal], count: int = 0,
+    stand_rates: dict[str, Decimal] | None = None,
+) -> None:
+    """Fill prices in the selected original, including table-cell paragraphs."""
+    config = KTRU[ktru_key]
+    doc = Document(TEMPLATE_DIR / config['justification'])
+    keys = supplier_keys(ktru_key)
+    totals = {key: money(area * area_rates[key]) + money(count * (stand_rates or {}).get(key, Decimal(0))) for key in keys}
+    minimum_key = min(keys, key=totals.get)
+    minimum = totals[minimum_key]
+    anchors = []
+    conclusions = 0
+    for paragraph in list(iter_all_paragraphs(doc)):
+        text = paragraph.text.strip()
+        if text.startswith(('Для определения среднерыночной', 'Ұқсас қызметтердің/жұмыстардың орташа')):
+            anchors.append((paragraph, text.startswith('Ұқсас')))
+        if text.startswith(('По итогам проведённого анализа', 'Жүргізілген талдау нәтижесінде')):
+            updated, changes = re.subn(
+                r'(составляет\s+|алмағанда\s+)[\d\s_]+(?=тенге|теңгені)',
+                lambda match: match.group(1) + decimal_label(minimum) + ' ', text,
+            )
+            if changes != 1:
+                raise ValueError(f'Не найдено поле итоговой цены в шаблоне {ktru_key}')
+            if minimum > CAP_TOTAL:
+                updated = updated.replace('не превышает', 'превышает').replace('аспайды', 'асады')
+            if ktru_key == 'graphics':
+                # Folders 1 and 4 contain the same justification with an aesthetic
+                # subject. Keep its source layout but correct this subject slot.
+                updated = updated.replace('эстетическому оформлению', 'нанесению изображений и надписей на стены')
+                updated = updated.replace('эстетикалық безендіру', 'қабырғаларға кескіндер мен жазулар түсіру')
+            set_paragraph_text(paragraph, updated)
+            conclusions += 1
+        elif 'наименьшая' in text and 'определена' in text:
+            _, suffix = text.split('что подтверждает', 1)
+            set_paragraph_text(paragraph,
+                f'В результате проведенного анализа цен наименьшая цена определена у '
+                f'{company_name(minimum_key)} — {decimal_label(minimum)} тенге без НДС, что подтверждает{suffix}')
+        elif 'ең төмен баға' in text and 'анықталды' in text:
+            _, suffix = text.split('бұл бюджет', 1)
+            set_paragraph_text(paragraph,
+                f'Жүргізілген баға талдауының нәтижесінде ең төмен баға '
+                f'{company_name(minimum_key, True)} бойынша {decimal_label(minimum)} теңге '
+                f'мөлшерінде анықталды, бұл бюджет{suffix}')
+    if conclusions != 2 or len(anchors) != 2:
+        raise ValueError(f'Неполный двуязычный шаблон обоснования: {ktru_key}')
+
+    for anchor, kazakh in anchors:
+        # Delete the old illustrative provider prices, not the legal or market
+        # reference text in the other rows. Missing price lists are added here.
+        parent = anchor._parent
+        for paragraph in list(parent.paragraphs):
+            text = paragraph.text.strip()
+            if paragraph._p is anchor._p:
+                continue
+            if not text or (('×' in text or '*' in text) and any(name in text for name in ('Production', 'Нәлібай', 'Архиспецснабмонтаж'))):
+                paragraph._element.getparent().remove(paragraph._element)
+        previous = anchor
+        for key in keys:
+            parts = [f'{decimal_label(area)} м² × {decimal_label(area_rates[key])}']
+            if stand_rates is not None:
+                parts.append(f'{count} {"дана" if kazakh else "шт."} × {decimal_label(stand_rates[key])}')
+            text = f'{company_name(key, kazakh)}: ' + ' + '.join(parts) + f' = {decimal_label(totals[key])} {"теңге" if kazakh else "тенге"}.'
+            element = OxmlElement('w:p')
+            if anchor._p.pPr is not None:
+                element.append(deepcopy(anchor._p.pPr))
+            previous._p.addnext(element)
+            previous = Paragraph(element, parent)
+            set_paragraph_text(previous, text)
+            previous.paragraph_format.space_before = Pt(0)
+            previous.paragraph_format.space_after = Pt(4)
+    clear_highlighting(doc)
     doc.save(destination)
+
+
+def update_area_offer(source: Path, destination: Path, provider: str, area: Decimal, rate: Decimal) -> None:
+    doc = Document(source)
+    total = money(area * rate)
+    remove_page_backgrounds(doc)
+    if provider == 'best':
+        for paragraph in doc.paragraphs:
+            if paragraph.text.startswith('Общая площадь'):
+                set_paragraph_text(paragraph,
+                    f'Общая площадь печати: {decimal_label(area)} м²\n'
+                    f'Стоимость работ за 1 м²: {decimal_label(rate)} тенге\n'
+                    f'Общая стоимость: {decimal_label(total)} тенге')
+        # Keep the original letterhead and signature, removing only spacer lines.
+        remove_empty_spacers(doc)
+    elif provider == 'nalibai':
+        table = doc.tables[0]
+        set_paragraph_text(table.cell(1, 3).paragraphs[0], f'{decimal_label(area)} м²')
+        set_paragraph_text(table.cell(1, 4).paragraphs[0], f'{decimal_label(total)} тенге')
+        set_paragraph_text(table.cell(2, 4).paragraphs[0], f'{decimal_label(total)} тенге')
+        paragraph = table.cell(1, 2).paragraphs[0]
+        set_paragraph_text(paragraph, paragraph.text + f'\nЦена за 1 м²: {decimal_label(rate)} тенге')
+        remove_empty_spacers(doc)
+    elif provider == 'abdykhalykov':
+        table = doc.tables[1]
+        set_paragraph_text(table.cell(1, 1).paragraphs[0], f'Декоративно-отделочные работы\n{decimal_label(rate)} тенге за 1 м²')
+        set_paragraph_text(table.cell(1, 2).paragraphs[0], f'{decimal_label(area)} м²')
+        set_paragraph_text(table.cell(1, 3).paragraphs[0], f'{decimal_label(total)} тенге')
+    elif provider in ('enzi', 'sarsenova'):
+        for paragraph in doc.paragraphs:
+            text = paragraph.text.strip()
+            if text.startswith(('Площадь:', 'Общая площадь:')):
+                set_paragraph_text(paragraph, f'Общая площадь: {decimal_label(area)} м².')
+            elif text.startswith('Стоимость работ за'):
+                set_paragraph_text(paragraph, f'Стоимость работ за 1 м²: {decimal_label(rate)} тенге.')
+            elif text.startswith('Стоимость:'):
+                set_paragraph_text(paragraph, f'Цена за 1 м²: {decimal_label(rate)} тенге.\nСтоимость: {decimal_label(total)} тенге без НДС.')
+            elif text.startswith('Итоговая стоимость:'):
+                set_paragraph_text(paragraph, f'Итоговая стоимость: {decimal_label(total)} тенге.')
+        if provider == 'sarsenova':
+            remove_empty_spacers(doc)
+            for paragraph in doc.paragraphs:
+                paragraph.paragraph_format.space_before = Pt(0)
+                paragraph.paragraph_format.space_after = Pt(3)
+            for cell in doc.tables[-1].rows[0].cells:
+                for paragraph in list(cell.paragraphs):
+                    if not paragraph.text.strip() and not paragraph._p.xpath('.//w:drawing | .//w:pict'):
+                        paragraph._element.getparent().remove(paragraph._element)
+    else:
+        raise ValueError(f'Нет обработчика шаблона КП: {provider}')
+    clear_highlighting(doc)
+    doc.save(destination)
+
+
+def create_area_offer_archi(source_path: Path, destination: Path, area: Decimal, rate: Decimal) -> None:
+    source = fitz.open(source_path)
+    page = source[0]
+    erase(page, fitz.Rect(400, 1890, 2310, 2040))
+    textbox(page, fitz.Rect(419, 1905, 2290, 1965),
+            f'Объем работ: {decimal_label(area)} м² × {decimal_label(rate)} тенге / м²', 48, 30)
+    textbox(page, fitz.Rect(419, 1968, 2290, 2035),
+            f'Общая стоимость работ: {decimal_label(money(area * rate))} тенге', 48, 30, bold=True)
+    save_flattened_a4(source, destination)
+    source.close()
+
+
 
 
 def update_specification(source: Path, destination: Path, area: Decimal, kind: dict) -> None:
     doc = Document(source)
-    for paragraph in doc.paragraphs:
-        if paragraph.text.startswith("Предметом закупки является"):
-            set_paragraph_text(paragraph, f"Предметом закупки являются {kind['ru_subject']}. ")
-        elif paragraph.text.startswith("Сатып алу нысаны"):
-            set_paragraph_text(paragraph, f"Сатып алу нысаны {kind['kz_subject']} болып табылады. ")
-
+    # Each work type supplies its own complete specification. Only fill its slots;
+    # do not turn an aesthetic specification into another work by renaming it.
+    if kind.get('specification', '').startswith('graphics/'):
+        # The source's Kazakh part inherits wider line spacing than Russian.
+        # Match the Russian spacing so its appendix stays in the same section.
+        for paragraph in doc.paragraphs:
+            paragraph.paragraph_format.line_spacing = 1.0
     area_text = f"{decimal_label(area)} м2"
     for table in doc.tables:
         if len(table.rows) > 1 and len(table.columns) > 2:
@@ -366,6 +458,14 @@ def update_specification(source: Path, destination: Path, area: Decimal, kind: d
                         paragraph.paragraph_format.keep_with_next = True
                     for run in paragraph.runs:
                         run.font.size = Pt(12)
+    for paragraph in doc.paragraphs:
+        if paragraph.text.strip() in ('Приложение 1', 'Қосымша 1', '1-қосымша'):
+            paragraph.paragraph_format.keep_with_next = True
+            following = paragraph._p.getnext()
+            while following is not None and following.tag == qn('w:p') and not following.xpath('.//w:t | .//w:drawing | .//w:pict | .//w:sectPr'):
+                next_element = following.getnext()
+                following.getparent().remove(following)
+                following = next_element
     doc.save(destination)
 
 
@@ -455,68 +555,10 @@ def save_flattened_a4(source: fitz.Document, destination: Path, dpi: int = 144) 
     normalized.close()
 
 
-def create_offer_abdicul(destination: Path, area: Decimal, total: Decimal, kind: dict, rate: Decimal) -> None:
-    doc = fitz.open(TEMPLATE_DIR / "offer-abdicul.pdf")
-    page = doc[0]
-
-    erase(
-        page,
-        fitz.Rect(86, 184, 542, 257),
-        fitz.Rect(117.5, 457.75, 369.5, 472.7),
-        fitz.Rect(410.5, 457.75, 518.5, 472.7),
-    )
-    title = f"Коммерческое предложение\nПо {kind['ru_genitive']}"
-    textbox(page, fitz.Rect(94, 192, 535, 252), title, 11.0, 8.0, bold=True, align=fitz.TEXT_ALIGN_CENTER)
-
-    textbox(page, fitz.Rect(118, 458, 369, 472), f"{kind['abdicul']} — {decimal_label(area)} м2 × {decimal_label(rate)} тг", 7.2, 5.0)
-    textbox(page, fitz.Rect(411, 458, 516, 472), f"{decimal_label(total)} тенге", 7.2, 5.5)
-    page.draw_line(fitz.Point(85.58, 457.27), fitz.Point(552.45, 457.27), color=(0, 0, 0), width=0.48, overlay=True)
-    save_flattened_a4(doc, destination)
-    doc.close()
 
 
-def create_offer_abdykhalykov(destination: Path, area: Decimal, total: Decimal, kind: dict, rate: Decimal) -> None:
-    doc = fitz.open(TEMPLATE_DIR / "offer-abdykhalykov.pdf")
-    page = doc[0]
-    erase(
-        page,
-        fitz.Rect(127.0, 461.6, 327.2, 489.5),
-        fitz.Rect(332.5, 461.6, 399.5, 476.5),
-        fitz.Rect(432.5, 461.6, 521.5, 476.5),
-    )
-    textbox(page, fitz.Rect(131, 461, 327, 491), f"{kind['abdykhalykov']}\n{decimal_label(rate)} тг / м²", 8.0, 5.2)
-    textbox(page, fitz.Rect(334, 462, 398, 476), f"{decimal_label(area)} м2", 8.0, 5.5, align=fitz.TEXT_ALIGN_CENTER)
-    textbox(page, fitz.Rect(433, 462, 520, 476), decimal_label(total), 8.0, 5.5, align=fitz.TEXT_ALIGN_CENTER)
-    page.draw_line(fitz.Point(99.74, 461.11), fitz.Point(527.25, 461.11), color=(0, 0, 0), width=0.48, overlay=True)
-    erase(page, fitz.Rect(0, 0, 40, page.rect.height))
-    save_flattened_a4(doc, destination)
-    doc.close()
 
 
-def create_offer_archi(destination: Path, area: Decimal, total: Decimal, kind: dict, rate: Decimal) -> None:
-    source = fitz.open(TEMPLATE_DIR / "offer-archi.pdf")
-    page = source[0]
-    erase(
-        page,
-        fitz.Rect(410, 1748, 2250, 1828),
-        fitz.Rect(650, 1828, 2300, 1907),
-        fitz.Rect(620, 1943, 1900, 2022),
-    )
-    textbox(page, fitz.Rect(430, 1760, 2210, 1820), kind["archi"], 48.5, 30.0, bold=True)
-    textbox(
-        page,
-        fitz.Rect(685, 1837, 2260, 1898),
-        f"{decimal_label(rate)} тенге без НДС за 1 м2. Общая площадь: {decimal_label(area)} м2",
-        48.0,
-        28.0,
-    )
-    textbox(page, fitz.Rect(631, 1953, 1870, 2013), f"{decimal_label(total)} тенге без НДС", 48.0, 28.0, bold=True)
-
-    # The supplier scan is 2604×3368 points and contains a 33-megapixel
-    # image. Flattening it keeps PDF viewers from decoding the original image
-    # and nested form resources on every zoom or scroll.
-    save_flattened_a4(source, destination)
-    source.close()
 
 
 def add_labeled_line(paragraph, label: str, value: str, break_before: bool = False) -> None:
@@ -667,8 +709,9 @@ def create_combined_offer_archi(
     stand_rate: Decimal,
     total: Decimal,
     area_rate: Decimal,
+    source_path: Path | None = None,
 ) -> None:
-    source = fitz.open(TEMPLATE_DIR / "combined-offer-archi.pdf")
+    source = fitz.open(source_path or TEMPLATE_DIR / 'combined/offer-archi.pdf')
     page = source[0]
     erase(
         page,
@@ -755,8 +798,8 @@ def merge_pdfs(destination: Path, sources: list[Path]) -> None:
         result.close()
 
 
-def update_stands_specification(destination: Path, count: int) -> None:
-    doc = Document(TEMPLATE_DIR / "stands-specification.docx")
+def update_stands_specification(destination: Path, count: int, source: Path | None = None) -> None:
+    doc = Document(source or TEMPLATE_DIR / KTRU['stands']['specification'])
     for index, table in enumerate(doc.tables):
         quantity_cell = table.cell(1, 2)
         set_paragraph_text(quantity_cell.paragraphs[0], f"{count} {'штук' if index == 0 else 'дана'}")
@@ -786,8 +829,8 @@ def update_stands_specification(destination: Path, count: int) -> None:
     doc.save(destination)
 
 
-def update_stands_justification(destination: Path, count: int, rates: dict[str, Decimal]) -> None:
-    doc = Document(TEMPLATE_DIR / "stands-justification.docx")
+def update_stands_justification(destination: Path, count: int, rates: dict[str, Decimal], source: Path | None = None) -> None:
+    doc = Document(source or TEMPLATE_DIR / KTRU['stands']['justification'])
     providers = (("Әбдіқұл", "abdicul"), ("Торговая сеть Казахстана", "trade"), ("Андрей и Ко", "andrey"))
     minimum = money(count * rates['abdicul'])
     for index, paragraph in enumerate(doc.paragraphs):
@@ -817,16 +860,16 @@ def update_stands_justification(destination: Path, count: int, rates: dict[str, 
     doc.save(destination)
 
 
-def update_stands_offer_abdicul(destination: Path, count: int, rate: Decimal) -> None:
-    doc = Document(TEMPLATE_DIR / 'stands-offer-abdicul.docx')
+def update_stands_offer_abdicul(destination: Path, count: int, rate: Decimal, source: Path | None = None) -> None:
+    doc = Document(source or TEMPLATE_DIR / 'stands/offer-abdicul.docx')
     table = doc.tables[1]
     set_paragraph_text(table.cell(1, 1).paragraphs[0], f'Изготовление стендов — {count} шт.\n{decimal_label(rate)} тенге за 1 шт.')
     set_paragraph_text(table.cell(1, 2).paragraphs[0], f'{decimal_label(money(count * rate))} тенге')
     doc.save(destination)
 
 
-def update_stands_offer_trade(destination: Path, count: int, rate: Decimal) -> None:
-    doc = Document(TEMPLATE_DIR / 'stands-offer-trade.docx')
+def update_stands_offer_trade(destination: Path, count: int, rate: Decimal, source: Path | None = None) -> None:
+    doc = Document(source or TEMPLATE_DIR / 'stands/offer-trade.docx')
     cell = doc.tables[1].cell(1, 1)
     set_paragraph_text(cell.paragraphs[0], f'{decimal_label(rate)} тг за 1 шт.\nКоличество: {count} шт.\n\nИтого: {decimal_label(money(count * rate))} тг\nБез НДС')
     for paragraph in cell.paragraphs[1:]:
@@ -834,8 +877,8 @@ def update_stands_offer_trade(destination: Path, count: int, rate: Decimal) -> N
     doc.save(destination)
 
 
-def create_stands_offer_andrey(destination: Path, count: int, rate: Decimal) -> None:
-    source = fitz.open(TEMPLATE_DIR / 'stands-offer-andrey.pdf')
+def create_stands_offer_andrey(destination: Path, count: int, rate: Decimal, source_path: Path | None = None) -> None:
+    source = fitz.open(source_path or TEMPLATE_DIR / 'stands/offer-andrey.pdf')
     page = source[0]
     erase(page, fitz.Rect(575, 2070, 1550, 2240), fitz.Rect(1580, 2070, 2235, 2240))
     textbox(page, fitz.Rect(585, 2080, 1545, 2230), f'Изготовление информационных стендов\nна тему «Жаңа Конституция» — {count} шт.', 44, 30)
@@ -845,20 +888,22 @@ def create_stands_offer_andrey(destination: Path, count: int, rate: Decimal) -> 
 
 
 def generate_stands_package(count: int, rates: dict[str, Decimal]) -> dict:
+    kind = KTRU['stands']
+    offers = {s['key']: TEMPLATE_DIR / s['offer'] for s in kind['suppliers']}
     job_id = uuid.uuid4().hex[:12]
     job_dir = GENERATED_DIR / job_id
     job_dir.mkdir(parents=True)
     spec_name = f'Техническая_спецификация_стенды_{count}шт.docx'
     bundle_name = f'Обоснование_и_3_КП_стенды_{count}шт.pdf'
-    update_stands_specification(job_dir / spec_name, count)
+    update_stands_specification(job_dir / spec_name, count, TEMPLATE_DIR / kind['specification'])
     justification = job_dir / 'Обоснование.docx'
     abdicul = job_dir / 'КП_Абдикул.docx'
     trade = job_dir / 'КП_Торговая_сеть_Казахстан.docx'
     andrey = job_dir / 'КП_Андрей.pdf'
-    update_stands_justification(justification, count, rates)
-    update_stands_offer_abdicul(abdicul, count, rates['abdicul'])
-    update_stands_offer_trade(trade, count, rates['trade'])
-    create_stands_offer_andrey(andrey, count, rates['andrey'])
+    update_stands_justification(justification, count, rates, TEMPLATE_DIR / kind['justification'])
+    update_stands_offer_abdicul(abdicul, count, rates['abdicul'], offers['abdicul'])
+    update_stands_offer_trade(trade, count, rates['trade'], offers['trade'])
+    create_stands_offer_andrey(andrey, count, rates['andrey'], offers['andrey'])
     merge_pdfs(job_dir / bundle_name, [convert_docx_to_pdf(p, job_dir) for p in (justification, abdicul, trade)] + [andrey])
     metadata = {
         'jobId': job_id,
@@ -874,6 +919,8 @@ def generate_stands_package(count: int, rates: dict[str, Decimal]) -> dict:
 
 
 def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict[str, Decimal], area_rates: dict[str, Decimal]) -> dict:
+    kind = KTRU['combined']
+    offers = {s['key']: TEMPLATE_DIR / s['offer'] for s in kind['suppliers']}
     job_id = uuid.uuid4().hex[:12]
     job_dir = GENERATED_DIR / job_id
     job_dir.mkdir(parents=True)
@@ -889,13 +936,9 @@ def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict
     }
 
     justification_docx = job_dir / "Обоснование.docx"
-    update_combined_justification(
-        TEMPLATE_DIR / "combined-justification.docx",
-        justification_docx,
-        totals["best"],
-    )
+    update_catalog_justification('combined', justification_docx, area, area_rates, stand_count, stand_rates)
     update_combined_specification(
-        TEMPLATE_DIR / "combined-specification.docx",
+        TEMPLATE_DIR / kind['specification'],
         spec_path,
         area,
         stand_count,
@@ -904,7 +947,7 @@ def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict
     best_docx = job_dir / "КП_Best_Production.docx"
     nalibai_docx = job_dir / "КП_Налибай.docx"
     update_combined_offer_best(
-        TEMPLATE_DIR / "combined-offer-best.docx",
+        offers['best'],
         best_docx,
         area,
         stand_count,
@@ -913,7 +956,7 @@ def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict
         area_rates['best'],
     )
     update_combined_offer_nalibai(
-        TEMPLATE_DIR / "combined-offer-nalibai.docx",
+        offers['nalibai'],
         nalibai_docx,
         area,
         stand_count,
@@ -933,6 +976,7 @@ def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict
         stand_rates["archi"],
         totals["archi"],
         area_rates['archi'],
+        offers['archi'],
     )
     merge_pdfs(bundle_path, [justification_pdf, best_pdf, nalibai_pdf, archi_pdf])
 
@@ -976,7 +1020,8 @@ def generate_package(
     if ktru_key == "combined":
         if stand_count is None or stand_rates is None:
             raise ValueError("Укажите количество и цены стендов")
-        return generate_combined_package(area, stand_count, stand_rates, area_rates or COMBINED_AREA_RATES)
+        defaults = supplier_rates(Decimal('25000'), (Decimal('7'), Decimal('15')), supplier_keys(ktru_key))
+        return generate_combined_package(area, stand_count, stand_rates, area_rates or defaults)
     kind = KTRU[ktru_key]
     job_id = uuid.uuid4().hex[:12]
     job_dir = GENERATED_DIR / job_id
@@ -987,20 +1032,24 @@ def generate_package(
     spec_path = job_dir / spec_name
     bundle_path = job_dir / bundle_name
 
-    area_rates = area_rates or RATES
-    totals = {key: money(rate * area) for key, rate in area_rates.items()}
+    area_rates = area_rates or supplier_rates(Decimal('25000'), (Decimal('7'), Decimal('15')), supplier_keys(ktru_key))
     justification_docx = job_dir / "Обоснование.docx"
-    update_justification(TEMPLATE_DIR / "justification.docx", justification_docx, area, kind, area_rates)
-    update_specification(TEMPLATE_DIR / "specification.docx", spec_path, area, kind)
+    update_catalog_justification(ktru_key, justification_docx, area, area_rates)
+    update_specification(TEMPLATE_DIR / kind['specification'], spec_path, area, kind)
     justification_pdf = convert_docx_to_pdf(justification_docx, job_dir)
-
-    abdicul_pdf = job_dir / "КП_Абдикул.pdf"
-    abdy_pdf = job_dir / "КП_Абдыхалыков.pdf"
-    archi_pdf = job_dir / "КП_Архиспецснабмонтаж.pdf"
-    create_offer_abdicul(abdicul_pdf, area, totals["abdicul"], kind, area_rates['abdicul'])
-    create_offer_abdykhalykov(abdy_pdf, area, totals["abdykhalykov"], kind, area_rates['abdykhalykov'])
-    create_offer_archi(archi_pdf, area, totals["archi"], kind, area_rates['archi'])
-    merge_pdfs(bundle_path, [justification_pdf, abdy_pdf, abdicul_pdf, archi_pdf])
+    offer_pdfs = []
+    for supplier in kind['suppliers']:
+        provider = supplier['key']
+        source = TEMPLATE_DIR / supplier['offer']
+        pdf_path = job_dir / f'КП_{provider}.pdf'
+        if source.suffix == '.docx':
+            docx_path = job_dir / f'КП_{provider}.docx'
+            update_area_offer(source, docx_path, provider, area, area_rates[provider])
+            convert_docx_to_pdf(docx_path, job_dir)
+        else:
+            create_area_offer_archi(source, pdf_path, area, area_rates[provider])
+        offer_pdfs.append(pdf_path)
+    merge_pdfs(bundle_path, [justification_pdf, *offer_pdfs])
 
     metadata = {
         "jobId": job_id,
@@ -1033,14 +1082,13 @@ def generate_from_payload(payload: dict) -> dict:
         raise ValueError('Выберите вид закупки из списка')
     markups = (parse_markup(payload.get('markup1', '7')), parse_markup(payload.get('markup2', '15')))
     area = Decimal(0) if ktru_key == 'stands' else parse_area(payload.get('area', ''))
-    area_keys = ('best', 'nalibai', 'archi') if ktru_key == 'combined' else ('abdykhalykov', 'abdicul', 'archi')
-    area_rates = supplier_rates(parse_money(payload.get('areaPrice', '25000'), 'цену за м²'), markups, area_keys)
+    keys = supplier_keys(ktru_key)
+    area_rates = supplier_rates(parse_money(payload.get('areaPrice', '25000'), 'цену за м²'), markups, keys) if ktru_key != 'stands' else None
     count = None
     stand_rates = None
     if ktru_key in ('stands', 'combined'):
         count = parse_count(payload.get('standCount', ''))
-        stand_keys = ('abdicul', 'trade', 'andrey') if ktru_key == 'stands' else ('best', 'nalibai', 'archi')
-        stand_rates = supplier_rates(parse_money(payload.get('standPrice', ''), 'цену за стенд'), markups, stand_keys)
+        stand_rates = supplier_rates(parse_money(payload.get('standPrice', ''), 'цену за стенд'), markups, keys)
     return generate_package(ktru_key, area, count, stand_rates, area_rates)
 
 
@@ -1110,10 +1158,10 @@ class AppHandler(BaseHTTPRequestHandler):
             if not self.is_authenticated():
                 self.redirect("/login")
                 return
-            self.serve_file(
-                STATIC_DIR / "index.html",
+            self.send_bytes(
+                render_index().encode('utf-8'),
                 "text/html; charset=utf-8",
-                {"Cache-Control": "no-store"},
+                headers={"Cache-Control": "no-store"},
             )
             return
         if parsed.path.startswith("/static/"):
