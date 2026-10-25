@@ -332,6 +332,9 @@ def update_area_offer(source: Path, destination: Path, provider: str, area: Deci
             for paragraph in doc.paragraphs:
                 paragraph.paragraph_format.space_before = Pt(0)
                 paragraph.paragraph_format.space_after = Pt(3)
+            # The decorative header has a fixed page anchor, independent of
+            # the table height. Leave a gap after the now-compact requisites.
+            doc.paragraphs[0].paragraph_format.space_before = Pt(18)
             for cell in doc.tables[-1].rows[0].cells:
                 for paragraph in list(cell.paragraphs):
                     if not paragraph.text.strip() and not paragraph._p.xpath('.//w:drawing | .//w:pict'):

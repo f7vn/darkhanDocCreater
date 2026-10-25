@@ -104,6 +104,7 @@ class TemplateTests(unittest.TestCase):
                         self.assertEqual(media_of(source), media_of(target))
                         self.assertFalse(document._element.xpath(".//wp:anchor[@behindDoc='1'][wp:extent[@cy > 10000000]]"))
                         if supplier['key'] == 'sarsenova':
+                            self.assertEqual(document.paragraphs[0].paragraph_format.space_before.pt, 18)
                             for cell in document.tables[0].rows[0].cells:
                                 for paragraph in cell.paragraphs:
                                     for run in paragraph.runs:
