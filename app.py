@@ -567,13 +567,20 @@ def update_combined_offer_best(
         elif paragraph.text.strip().startswith("BEST PRODUCTION") or 19 <= paragraph_index <= 24:
             paragraph.paragraph_format.space_before = Pt(0)
             paragraph.paragraph_format.space_after = Pt(0)
-            paragraph.paragraph_format.line_spacing = Pt(8.5)
+            paragraph.paragraph_format.line_spacing = Pt(7.5)
             for run in paragraph.runs:
-                run.font.size = Pt(7.5)
-    for paragraph in reversed(doc.paragraphs):
-        if paragraph.text.strip():
-            break
-        paragraph._element.getparent().remove(paragraph._element)
+                run.font.size = Pt(6.8)
+        elif 4 <= paragraph_index <= 16:
+            paragraph.paragraph_format.space_before = Pt(0)
+            paragraph.paragraph_format.space_after = Pt(0)
+            paragraph.paragraph_format.line_spacing = Pt(11)
+            for run in paragraph.runs:
+                if run.font.size is None or run.font.size.pt > 10.5:
+                    run.font.size = Pt(10.5)
+    for paragraph_index, paragraph in reversed(list(enumerate(doc.paragraphs))):
+        has_drawing = bool(paragraph._p.xpath(".//*[local-name()='drawing' or local-name()='pict']"))
+        if paragraph_index > 2 and not paragraph.text.strip() and not has_drawing:
+            paragraph._element.getparent().remove(paragraph._element)
     doc.save(destination)
 
 
