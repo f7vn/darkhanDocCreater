@@ -36,6 +36,14 @@
               </span>
             </label>
             <label class="option-card">
+              <input type="radio" name="ktru" value="stands">
+              <span class="option-check" aria-hidden="true"></span>
+              <span class="option-copy">
+                <strong>Услуги по изготовлению стендов</strong>
+                <small>Количество стендов и цена за штуку</small>
+              </span>
+            </label>
+            <label class="option-card">
               <input type="radio" name="ktru" value="graphics">
               <span class="option-check" aria-hidden="true"></span>
               <span class="option-copy">
@@ -55,12 +63,13 @@
         </fieldset>
 
         <fieldset class="field-group area-group">
-          <legend><span>2</span> Общая площадь</legend>
-          <p class="field-hint">Одинаковое значение попадёт во все пять исходных документов.</p>
+          <legend><span>2</span> Объём и базовая цена</legend>
+          <p class="field-hint">Цены конкурентов рассчитаются по указанным надбавкам.</p>
+          <div id="area-fields">
           <div class="area-control">
             <label class="area-input-frame" for="area">
               <span class="area-input-label">Площадь</span>
-              <input id="area" name="area" type="text" inputmode="decimal" value="80" autocomplete="off" aria-describedby="area-help area-error">
+              <input id="area" name="area" type="text" inputmode="decimal" value="80" autocomplete="off" aria-describedby="area-help form-error">
               <span class="area-unit" aria-hidden="true">м²</span>
             </label>
             <div class="area-stepper" role="group" aria-label="Изменить площадь">
@@ -69,37 +78,34 @@
             </div>
           </div>
           <p id="area-help" class="micro-hint">Можно использовать дробное значение, например 80,5</p>
-          <p id="area-error" class="field-error" hidden></p>
+          <label class="count-input-frame base-price-field" for="area-price">
+            <span>Цена за м²</span>
+            <input id="area-price" name="areaPrice" type="text" inputmode="decimal" value="25000" autocomplete="off" aria-describedby="form-error">
+            <em>₸ / м²</em>
+          </label>
+          </div>
 
           <div id="stand-fields" class="stand-fields" hidden>
             <div class="stand-heading">
               <strong>Стенды</strong>
-              <span>Укажите количество и цену каждого поставщика.</span>
+              <span>Базовая цена за один стенд.</span>
             </div>
 
             <label class="count-input-frame" for="stand-count">
               <span>Количество</span>
-              <input id="stand-count" name="standCount" type="text" inputmode="numeric" value="1" autocomplete="off" aria-describedby="stand-error">
+              <input id="stand-count" name="standCount" type="text" inputmode="numeric" value="1" autocomplete="off" aria-describedby="form-error">
               <em>шт.</em>
             </label>
 
-            <div class="stand-price-grid" aria-label="Цены за один стенд">
-              <label class="stand-price-field">
-                <span>Best Production</span>
-                <span class="stand-price-input"><input id="stand-price-best" name="standPriceBest" type="text" inputmode="decimal" autocomplete="off" placeholder="Цена"><em>₸ / шт.</em></span>
-              </label>
-              <label class="stand-price-field">
-                <span>ИП Нәлібай</span>
-                <span class="stand-price-input"><input id="stand-price-nalibai" name="standPriceNalibai" type="text" inputmode="decimal" autocomplete="off" placeholder="Цена"><em>₸ / шт.</em></span>
-              </label>
-              <label class="stand-price-field">
-                <span>ТОО Архи</span>
-                <span class="stand-price-input"><input id="stand-price-archi" name="standPriceArchi" type="text" inputmode="decimal" autocomplete="off" placeholder="Цена"><em>₸ / шт.</em></span>
-              </label>
-            </div>
-            <p id="stand-error" class="field-error" hidden></p>
+            <label class="count-input-frame base-price-field" for="stand-price">
+              <span>Цена за стенд</span>
+              <input id="stand-price" name="standPrice" type="text" inputmode="decimal" autocomplete="off" placeholder="Укажите цену" aria-describedby="form-error">
+              <em>₸ / шт.</em>
+            </label>
           </div>
         </fieldset>
+
+        <p id="form-error" class="field-error" role="alert" hidden></p>
 
         <button class="generate-button" type="submit">
           <span class="button-label">
@@ -113,7 +119,6 @@
       <aside class="summary-card" aria-labelledby="summary-title">
         <div class="summary-heading">
           <div>
-            <span class="summary-kicker">Проверка перед сборкой</span>
             <h2 id="summary-title">Ваш комплект</h2>
           </div>
           <div class="summary-actions">
@@ -145,14 +150,15 @@
               <strong id="total-1" role="cell">2 000 000 ₸</strong>
             </div>
             <div class="price-row" role="row">
-              <span role="cell"><i class="vendor-dot dot-two" aria-hidden="true"></i><b id="vendor-2">ИП Әбдіқұл</b><small id="rate-2">27 000 ₸ / м²</small></span>
-              <strong id="total-2" role="cell">2 160 000 ₸</strong>
+              <span role="cell"><i class="vendor-dot dot-two" aria-hidden="true"></i><b id="vendor-2">ИП Әбдіқұл</b><label class="markup-control"><span>Надбавка</span><input id="markup-1" name="markup1" form="generator-form" type="text" inputmode="decimal" value="7" autocomplete="off" aria-label="Надбавка первого конкурента" aria-describedby="form-error"><span>%</span></label><small id="rate-2">26 750 ₸ / м²</small></span>
+              <strong id="total-2" role="cell">2 140 000 ₸</strong>
             </div>
             <div class="price-row" role="row">
-              <span role="cell"><i class="vendor-dot dot-three" aria-hidden="true"></i><b id="vendor-3">ТОО Архиспецснабмонтаж</b><small id="rate-3">29 000 ₸ / м²</small></span>
-              <strong id="total-3" role="cell">2 320 000 ₸</strong>
+              <span role="cell"><i class="vendor-dot dot-three" aria-hidden="true"></i><b id="vendor-3">ТОО Архиспецснабмонтаж</b><label class="markup-control"><span>Надбавка</span><input id="markup-2" name="markup2" form="generator-form" type="text" inputmode="decimal" value="15" autocomplete="off" aria-label="Надбавка второго конкурента" aria-describedby="form-error"><span>%</span></label><small id="rate-3">28 750 ₸ / м²</small></span>
+              <strong id="total-3" role="cell">2 300 000 ₸</strong>
             </div>
           </div>
+          <p class="micro-hint">Надбавки применяются к цене за м² и за стенд. Проценты можно изменить.</p>
         </div>
 
         <div id="result" class="result-panel" role="status" aria-live="polite" hidden>
