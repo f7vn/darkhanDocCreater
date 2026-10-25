@@ -190,6 +190,8 @@ def set_paragraph_text(paragraph, text: str, bold_prefix: str | None = None) -> 
     run = paragraph.add_run(text)
     if run_properties is not None:
         run._r.insert(0, run_properties)
+    # Placeholder highlighting belongs to the template, not the final values.
+    run.font.highlight_color = None
     if run.font.name is None:
         run.font.name = "Times New Roman"
     if run.font.size is None:
