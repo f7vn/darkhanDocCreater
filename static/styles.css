@@ -126,7 +126,7 @@ fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .stand-fields { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
 .stand-fields.standalone { margin-top: 0; padding-top: 0; border-top: 0; }
 .stand-fields.standalone .stand-heading { display: none; }
-.base-price-field { margin-top: 12px; grid-template-columns: minmax(0, 1fr) minmax(80px, 120px) auto; }
+.count-input-frame.base-price-field { margin-top: 12px; grid-template-columns: minmax(0, 1fr) minmax(12ch, 1.5fr) auto; }
 .base-price-field input { font-size: 18px; }
 .base-price-field input::placeholder { color: var(--muted); font-size: 14px; font-weight: 500; }
 .markup-control { width: max-content; margin-top: 9px; display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 500; }
