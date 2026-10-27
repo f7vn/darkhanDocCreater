@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from decimal import Decimal
+import hashlib
 from http.cookiejar import CookieJar
 from io import BytesIO
 import json
@@ -91,7 +92,38 @@ def main() -> None:
             if mode in ('stands', 'combined'):
                 expected += app.money(count * stands[key])
             assert app.decimal_label(expected).replace(' ', '') in text, (mode, key, expected)
-        report[mode] = {'jobId': result['jobId'], 'pdfPages': len(pdf), 'pdfBytes': len(files['PDF'])}
+        # Check the actual offer pages, not only the totals in the justification.
+        # All source image pixels, including handwritten ink and stamps, must
+        # survive merging. Testing rendered text alone cannot catch lost art.
+        signed = []
+        for supplier in app.KTRU[mode]['suppliers']:
+            if not supplier.get('signed_offer'):
+                continue
+            with fitz.open(app.TEMPLATE_DIR / supplier['signed_offer']) as original:
+                expected_images = {
+                    hashlib.sha256(fitz.Pixmap(original, item[0]).samples).hexdigest()
+                    for item in original[0].get_images()
+                }
+            candidates = []
+            for page in pdf:
+                actual_images = {
+                    hashlib.sha256(fitz.Pixmap(pdf, item[0]).samples).hexdigest()
+                    for item in page.get_images()
+                }
+                if expected_images <= actual_images:
+                    candidates.append(page)
+            assert len(candidates) == 1, (mode, supplier['key'], 'signature/stamp image mismatch')
+            page = candidates[0]
+            offer_text = re.sub(r'\s', '', page.get_text())
+            key = supplier['key']
+            expected = app.money(area * rates[key]) if mode != 'stands' else Decimal(0)
+            if mode in ('stands', 'combined'):
+                expected += app.money(count * stands[key])
+            assert app.decimal_label(expected).replace(' ', '') in offer_text, (mode, key, 'offer total')
+            assert not list(page.widgets()), (mode, key, 'unexpected form field')
+            assert 'SIGN' not in offer_text, (mode, key, 'signature marker')
+            signed.append(key)
+        report[mode] = {'jobId': result['jobId'], 'pdfPages': len(pdf), 'pdfBytes': len(files['PDF']), 'signedOffers': signed}
         print(mode, 'OK', report[mode], flush=True)
     if args.output_dir:
         (args.output_dir / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))

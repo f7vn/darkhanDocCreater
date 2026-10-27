@@ -7,9 +7,27 @@
     "specification": "aesthetic/specification.docx",
     "justification": "aesthetic/justification.docx",
     "suppliers": [
-      {"key": "best", "name": "Best Production", "offer": "aesthetic/offer-best.docx"},
-      {"key": "nalibai", "name": "ИП Нәлібай", "offer": "aesthetic/offer-nalibai.docx"},
-      {"key": "archi", "name": "ТОО Архиспецснабмонтаж", "offer": "aesthetic/offer-archi.pdf"}
+      {
+        "key": "best",
+        "name": "Best Production",
+        "offer": "aesthetic/offer-best.docx",
+        "signed_offer": "aesthetic/signed-best.pdf",
+        "signed_source": "КП с подписями и печатями/1) Эстетическое оформление/КП-ИП BEST_PRODUCTION- эстет.оформ._______м2.pdf",
+        "signed_sha256": "76a3902ef70534bab565e0404d7981aa9408884b9459810d021c294bb2c544c8"
+      },
+      {
+        "key": "nalibai",
+        "name": "ИП Нәлібай",
+        "offer": "aesthetic/offer-nalibai.docx",
+        "signed_offer": "aesthetic/signed-nalibai.pdf",
+        "signed_source": "КП с подписями и печатями/1) Эстетическое оформление/КП_ИП Нәлібай Н.Р. ________ м2.pdf",
+        "signed_sha256": "31abd584493a04c8fc76d45d2d99af5548d84c1c92307c29b1407d9544c72a80"
+      },
+      {
+        "key": "archi",
+        "name": "ТОО Архиспецснабмонтаж",
+        "offer": "aesthetic/offer-archi.pdf"
+      }
     ],
     "source_files": {
       "specification.docx": "ТС_Эстет оформление-_____м2.docx",
@@ -27,9 +45,27 @@
     "specification": "finishing/specification.docx",
     "justification": "finishing/justification.docx",
     "suppliers": [
-      {"key": "abdykhalykov", "name": "ИП Абдыхалыков", "offer": "finishing/offer-abdykhalykov.docx"},
-      {"key": "enzi", "name": "ENZI", "offer": "finishing/offer-enzi.docx"},
-      {"key": "sarsenova", "name": "ИП Сарсенова", "offer": "finishing/offer-sarsenova.docx"}
+      {
+        "key": "abdykhalykov",
+        "name": "ИП Абдыхалыков",
+        "offer": "finishing/offer-abdykhalykov.docx",
+        "signed_offer": "finishing/signed-abdykhalykov.pdf",
+        "signed_source": "КП с подписями и печатями/2) Декоративно-отдедочные работы/КП Абдыхалыков-Декор____м2.pdf",
+        "signed_sha256": "8908b00618d6d54ee083b9b98af821a64b7f8603b4ac10d866b87af3adb9497f"
+      },
+      {
+        "key": "enzi",
+        "name": "ENZI",
+        "offer": "finishing/offer-enzi.docx"
+      },
+      {
+        "key": "sarsenova",
+        "name": "ИП Сарсенова",
+        "offer": "finishing/offer-sarsenova.docx",
+        "signed_offer": "finishing/signed-sarsenova.pdf",
+        "signed_source": "КП с подписями и печатями/2) Декоративно-отдедочные работы/КомПред ИП Сарсенова_Декор______м2.pdf",
+        "signed_sha256": "40788812a265c6d6b3c4896dbb3fb62f680bf6d36b8e7061c8d74ffec664dbdd"
+      }
     ],
     "source_files": {
       "specification.docx": "Техническая_спецификация_декор._____м2.docx",
@@ -47,9 +83,24 @@
     "specification": "stands/specification.docx",
     "justification": "stands/justification.docx",
     "suppliers": [
-      {"key": "abdicul", "name": "ИП Әбдіқұл", "offer": "stands/offer-abdicul.docx"},
-      {"key": "trade", "name": "ТОО Торговая сеть Казахстан", "offer": "stands/offer-trade.docx"},
-      {"key": "andrey", "name": "ИП Андрей и Ко", "offer": "stands/offer-andrey.pdf"}
+      {
+        "key": "abdicul",
+        "name": "ИП Әбдіқұл",
+        "offer": "stands/offer-abdicul.docx",
+        "signed_offer": "stands/signed-abdicul.pdf",
+        "signed_source": "КП с подписями и печатями/3) Работы по изготовлению стендов/КП Абдикул-Стенды         штук.pdf",
+        "signed_sha256": "95de222c8cb7a57067fb7366453cd1046229bb15737e46085a6b0599e5b6dae7"
+      },
+      {
+        "key": "trade",
+        "name": "ТОО Торговая сеть Казахстан",
+        "offer": "stands/offer-trade.docx"
+      },
+      {
+        "key": "andrey",
+        "name": "ИП Андрей и Ко",
+        "offer": "stands/offer-andrey.pdf"
+      }
     ],
     "source_files": {
       "specification.docx": "ТС_Изготовление стендов.docx",
@@ -67,9 +118,27 @@
     "specification": "graphics/specification.docx",
     "justification": "graphics/justification.docx",
     "suppliers": [
-      {"key": "best", "name": "Best Production", "offer": "graphics/offer-best.docx"},
-      {"key": "nalibai", "name": "ИП Нәлібай", "offer": "graphics/offer-nalibai.docx"},
-      {"key": "archi", "name": "ТОО Архиспецснабмонтаж", "offer": "graphics/offer-archi.pdf"}
+      {
+        "key": "best",
+        "name": "Best Production",
+        "offer": "graphics/offer-best.docx",
+        "signed_offer": "graphics/signed-best.pdf",
+        "signed_source": "КП с подписями и печатями/4) Услуги по нанесению надписи и изображений/КП-ИП BEST_PRODUCTION- нанесение на стены_______м2.pdf",
+        "signed_sha256": "62f0ff60582d001b4a3601746764bd412be3a316e6792dcc427a4a9e495eeb1b"
+      },
+      {
+        "key": "nalibai",
+        "name": "ИП Нәлібай",
+        "offer": "graphics/offer-nalibai.docx",
+        "signed_offer": "graphics/signed-nalibai.pdf",
+        "signed_source": "КП с подписями и печатями/4) Услуги по нанесению надписи и изображений/КП_ИП Нәлібай Н.Р. ________ м2.pdf",
+        "signed_sha256": "37783ec29cc65f9fc0383f5548f88e204054c31e975f84de2b7e14c02678c3ef"
+      },
+      {
+        "key": "archi",
+        "name": "ТОО Архиспецснабмонтаж",
+        "offer": "graphics/offer-archi.pdf"
+      }
     ],
     "source_files": {
       "specification.docx": "ТС_Нанесение надписей.docx",
@@ -87,9 +156,27 @@
     "specification": "combined/specification.docx",
     "justification": "combined/justification.docx",
     "suppliers": [
-      {"key": "best", "name": "Best Production", "offer": "combined/offer-best.docx"},
-      {"key": "nalibai", "name": "ИП Нәлібай", "offer": "combined/offer-nalibai.docx"},
-      {"key": "archi", "name": "ТОО Архи", "offer": "combined/offer-archi.pdf"}
+      {
+        "key": "best",
+        "name": "Best Production",
+        "offer": "combined/offer-best.docx",
+        "signed_offer": "combined/signed-best.pdf",
+        "signed_source": "КП с подписями и печатями/5) Декор+стенды/КП-ИП BEST_PRODUCTION- Декор+стенд.pdf",
+        "signed_sha256": "65f79a0634e53f2f187cd2ce1907be3416c53e591dbef0a1a095ace18800b662"
+      },
+      {
+        "key": "nalibai",
+        "name": "ИП Нәлібай",
+        "offer": "combined/offer-nalibai.docx",
+        "signed_offer": "combined/signed-nalibai.pdf",
+        "signed_source": "КП с подписями и печатями/5) Декор+стенды/КП_ИП Нәлібай Н.Р. Декор+стенд.pdf",
+        "signed_sha256": "a6441744481f480c5ad7c7c2ab976e8bed2c25ce545ff2375e29b602183cbc3f"
+      },
+      {
+        "key": "archi",
+        "name": "ТОО Архи",
+        "offer": "combined/offer-archi.pdf"
+      }
     ],
     "source_files": {
       "specification.docx": "Техническая_спецификация_Декор+стенд.docx",

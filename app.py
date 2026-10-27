@@ -530,6 +530,143 @@ def textbox(page, rect: fitz.Rect, text: str, max_size: float, min_size: float =
     raise RuntimeError(f"Текст не помещается в шаблон: {text}")
 
 
+def pdf_field(page, bounds: tuple, text: str, size: float = 11, minimum: float = 7,
+              bold: bool = False, align: int = fitz.TEXT_ALIGN_LEFT,
+              fill: tuple = (1, 1, 1)) -> None:
+    """Replace only a verified variable slot, leaving images and table rules intact."""
+    rect = fitz.Rect(bounds)
+    # No redaction fill: MuPDF paints it with a 1pt outline which can cover
+    # adjacent table rules. Paint the exact field rectangle ourselves below.
+    page.add_redact_annot(rect, fill=None, cross_out=False)
+    page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE,
+                          graphics=fitz.PDF_REDACT_LINE_ART_NONE,
+                          text=fitz.PDF_REDACT_TEXT_REMOVE)
+    # The source's yellow placeholder highlights are vector drawings, not
+    # annotations. An opaque field fill removes them without touching stamps.
+    page.draw_rect(rect, color=None, fill=fill, overlay=True)
+    textbox(page, rect, text, size, minimum, bold=bold, align=align)
+
+
+def create_signed_offer(source_path: Path, destination: Path, mode: str, provider: str,
+                        area: Decimal, area_rate: Decimal, count: int,
+                        stand_rate: Decimal) -> None:
+    """Fill the nine approved PDF originals without reflowing their signed artwork."""
+    area_total = money(area * area_rate)
+    stand_total = money(count * stand_rate)
+    total = area_total + stand_total
+    with fitz.open(source_path) as source:
+        if len(source) != 1:
+            raise ValueError(f'Ожидался одностраничный шаблон КП: {source_path.name}')
+        page = source[0]
+        for widget in list(page.widgets()):
+            # Preview adds an EMPTY /Sig widget displaying the orange SIGN
+            # arrow. The actual handwritten signature is a page image. Never
+            # strip a real cryptographic signature or a non-Apple form field.
+            apple_marker = source.xref_get_key(widget.xref, 'AAPL:isSignatureMarker')[1]
+            signature_value = source.xref_get_key(widget.xref, 'V')[0]
+            if (widget.field_type != fitz.PDF_WIDGET_TYPE_SIGNATURE
+                    or apple_marker != 'true' or signature_value != 'null'):
+                raise ValueError('В шаблоне обнаружена электронная подпись или неизвестное поле PDF')
+            page.delete_widget(widget)
+
+        if provider in ('nalibai', 'abdykhalykov'):
+            # Keep the background image (including the supplier logo), covering
+            # just its gray 34pt left strip, well outside text and signature art.
+            page.draw_rect(fitz.Rect(0, 0, 34, page.rect.height), color=None, fill=(1, 1, 1))
+
+        if provider == 'best':
+            top = 474.0 if mode == 'combined' else 444.3
+            lines = [
+                f'Общая площадь печати: {decimal_label(area)} м²',
+                f'Стоимость работ за 1 м²: {decimal_label(area_rate)} тенге',
+            ]
+            if mode == 'combined':
+                lines.append(f'Стенды: {count} шт. × {decimal_label(stand_rate)} = {decimal_label(stand_total)} тенге')
+            lines.append(f'Общая стоимость: {decimal_label(total)} тенге')
+            for index, line in enumerate(lines):
+                y = top + 14.85 * index
+                pdf_field(page, (46.5, y, 565, y + 14.7), line, 10.5, 8,
+                          bold=index == len(lines) - 1)
+        elif provider == 'nalibai' and mode != 'combined':
+            bottom = 254.1 if mode == 'aesthetic' else 267.9
+            pdf_field(page, (380, 194, 428, bottom), f'{decimal_label(area)}\nм²',
+                      align=fitz.TEXT_ALIGN_CENTER)
+            pdf_field(page, (432, 194, 527, bottom),
+                      f'{decimal_label(area_rate)} тг/м²\nСумма:\n{decimal_label(total)} тенге',
+                      10, 7, align=fitz.TEXT_ALIGN_CENTER)
+            pdf_field(page, (432, bottom + 2, 527, bottom + 22.5),
+                      f'{decimal_label(total)} тенге', 10, 6.5, bold=True,
+                      align=fitz.TEXT_ALIGN_CENTER, fill=(0.851, 0.918, 0.969))
+        elif provider == 'nalibai':
+            pdf_field(page, (216, 420.6, 576, 434.1),
+                      f'{decimal_label(area)} м² × {decimal_label(area_rate)} = {decimal_label(area_total)} тенге', 10, 7)
+            pdf_field(page, (216, 435, 576, 462.2),
+                      f'{count} шт. × {decimal_label(stand_rate)} = {decimal_label(stand_total)} тенге', 10, 7)
+            pdf_field(page, (216, 463, 576, 490.3),
+                      f'{decimal_label(total)} тенге без НДС', 11, 8, bold=True)
+        elif provider == 'abdykhalykov':
+            pdf_field(page, (330, 493.2, 426.5, 508.5), f'{decimal_label(area)} м²',
+                      11, 8, align=fitz.TEXT_ALIGN_CENTER)
+            pdf_field(page, (431, 493.2, 526, 508.5), f'{decimal_label(total)} тенге',
+                      11, 6.5, align=fitz.TEXT_ALIGN_CENTER)
+            pdf_field(page, (100, 512, 526, 530),
+                      f'Стоимость работ за 1 м²: {decimal_label(area_rate)} тенге', 11, 9)
+        elif provider == 'sarsenova':
+            pdf_field(page, (56.5, 517.3, 559, 534.3),
+                      f'Стоимость работ за 1 м²: {decimal_label(area_rate)} тенге.', 13, 10)
+            pdf_field(page, (56.5, 534.5, 559, 551.5),
+                      f'Общая площадь: {decimal_label(area)} м².', 13, 10)
+            pdf_field(page, (56.5, 576.6, 559, 594),
+                      f'Итоговая стоимость: {decimal_label(total)} тенге.', 13, 10, bold=True)
+        elif provider == 'abdicul':
+            pdf_field(page, (117, 435.4, 399, 453.7),
+                      f'Изготовление стендов — {count} шт.', 11, 9)
+            pdf_field(page, (117, 459, 550, 478),
+                      f'Цена за 1 шт.: {decimal_label(stand_rate)} тенге', 11, 9)
+            pdf_field(page, (405, 435.4, 550, 453.7),
+                      f'{decimal_label(total)} тенге', 11, 7, align=fitz.TEXT_ALIGN_CENTER)
+        else:
+            raise ValueError(f'Нет обработчика подписанного КП: {mode}/{provider}')
+
+        # Preserve searchable vector text and the original signature/stamp
+        # pixels, not a screenshot of the entire page. Subset inserted fonts
+        # to keep downloads small and page rendering fast.
+        source.subset_fonts()
+        source.save(destination, garbage=4, deflate=True, use_objstms=1)
+
+
+def create_supplier_offer(mode: str, supplier: dict, destination: Path,
+                          area: Decimal = Decimal(0), area_rate: Decimal = Decimal(0),
+                          count: int = 0, stand_rate: Decimal = Decimal(0)) -> None:
+    """All package types prefer their own signed PDF when one is registered."""
+    provider = supplier['key']
+    if supplier.get('signed_offer'):
+        create_signed_offer(TEMPLATE_DIR / supplier['signed_offer'], destination,
+                            mode, provider, area, area_rate, count, stand_rate)
+        return
+    source = TEMPLATE_DIR / supplier['offer']
+    if source.suffix == '.pdf':
+        if mode == 'stands':
+            create_stands_offer_andrey(destination, count, stand_rate, source)
+        elif mode == 'combined':
+            create_combined_offer_archi(destination, area, count, stand_rate,
+                                        money(area * area_rate) + money(count * stand_rate), area_rate, source)
+        else:
+            create_area_offer_archi(source, destination, area, area_rate)
+    else:
+        docx_path = destination.with_suffix('.docx')
+        if mode == 'stands':
+            updater = update_stands_offer_abdicul if provider == 'abdicul' else update_stands_offer_trade
+            updater(docx_path, count, stand_rate, source)
+        elif mode == 'combined':
+            updater = update_combined_offer_best if provider == 'best' else update_combined_offer_nalibai
+            updater(source, docx_path, area, count, stand_rate,
+                    money(area * area_rate) + money(count * stand_rate), area_rate)
+        else:
+            update_area_offer(source, docx_path, provider, area, area_rate)
+        convert_docx_to_pdf(docx_path, destination.parent)
+
+
 def save_flattened_a4(source: fitz.Document, destination: Path, dpi: int = 144) -> None:
     """Save one edited supplier page as a simple, fast A4 image page."""
     page = source[0]
@@ -903,7 +1040,6 @@ def create_stands_offer_andrey(destination: Path, count: int, rate: Decimal, sou
 
 def generate_stands_package(count: int, rates: dict[str, Decimal]) -> dict:
     kind = KTRU['stands']
-    offers = {s['key']: TEMPLATE_DIR / s['offer'] for s in kind['suppliers']}
     job_id = uuid.uuid4().hex[:12]
     job_dir = GENERATED_DIR / job_id
     job_dir.mkdir(parents=True)
@@ -911,14 +1047,13 @@ def generate_stands_package(count: int, rates: dict[str, Decimal]) -> dict:
     bundle_name = f'Обоснование_и_3_КП_стенды_{count}шт.pdf'
     update_stands_specification(job_dir / spec_name, count, TEMPLATE_DIR / kind['specification'])
     justification = job_dir / 'Обоснование.docx'
-    abdicul = job_dir / 'КП_Абдикул.docx'
-    trade = job_dir / 'КП_Торговая_сеть_Казахстан.docx'
-    andrey = job_dir / 'КП_Андрей.pdf'
     update_stands_justification(justification, count, rates, TEMPLATE_DIR / kind['justification'])
-    update_stands_offer_abdicul(abdicul, count, rates['abdicul'], offers['abdicul'])
-    update_stands_offer_trade(trade, count, rates['trade'], offers['trade'])
-    create_stands_offer_andrey(andrey, count, rates['andrey'], offers['andrey'])
-    merge_pdfs(job_dir / bundle_name, [convert_docx_to_pdf(p, job_dir) for p in (justification, abdicul, trade)] + [andrey])
+    offer_pdfs = []
+    for supplier in kind['suppliers']:
+        pdf = job_dir / f'КП_{supplier["key"]}.pdf'
+        create_supplier_offer('stands', supplier, pdf, count=count, stand_rate=rates[supplier['key']])
+        offer_pdfs.append(pdf)
+    merge_pdfs(job_dir / bundle_name, [convert_docx_to_pdf(justification, job_dir), *offer_pdfs])
     metadata = {
         'jobId': job_id,
         'ktru': KTRU['stands']['label'],
@@ -934,7 +1069,6 @@ def generate_stands_package(count: int, rates: dict[str, Decimal]) -> dict:
 
 def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict[str, Decimal], area_rates: dict[str, Decimal]) -> dict:
     kind = KTRU['combined']
-    offers = {s['key']: TEMPLATE_DIR / s['offer'] for s in kind['suppliers']}
     job_id = uuid.uuid4().hex[:12]
     job_dir = GENERATED_DIR / job_id
     job_dir.mkdir(parents=True)
@@ -943,11 +1077,6 @@ def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict
     bundle_name = f"Обоснование_и_3_КП_{area_slug}м2_{stand_count}шт.pdf"
     spec_path = job_dir / spec_name
     bundle_path = job_dir / bundle_name
-
-    totals = {
-        provider: money(area_rates[provider] * area) + stand_rates[provider] * stand_count
-        for provider in area_rates
-    }
 
     justification_docx = job_dir / "Обоснование.docx"
     update_catalog_justification('combined', justification_docx, area, area_rates, stand_count, stand_rates)
@@ -958,41 +1087,15 @@ def generate_combined_package(area: Decimal, stand_count: int, stand_rates: dict
         stand_count,
     )
 
-    best_docx = job_dir / "КП_Best_Production.docx"
-    nalibai_docx = job_dir / "КП_Налибай.docx"
-    update_combined_offer_best(
-        offers['best'],
-        best_docx,
-        area,
-        stand_count,
-        stand_rates["best"],
-        totals["best"],
-        area_rates['best'],
-    )
-    update_combined_offer_nalibai(
-        offers['nalibai'],
-        nalibai_docx,
-        area,
-        stand_count,
-        stand_rates["nalibai"],
-        totals["nalibai"],
-        area_rates['nalibai'],
-    )
-
     justification_pdf = convert_docx_to_pdf(justification_docx, job_dir)
-    best_pdf = convert_docx_to_pdf(best_docx, job_dir)
-    nalibai_pdf = convert_docx_to_pdf(nalibai_docx, job_dir)
-    archi_pdf = job_dir / "КП_Архи.pdf"
-    create_combined_offer_archi(
-        archi_pdf,
-        area,
-        stand_count,
-        stand_rates["archi"],
-        totals["archi"],
-        area_rates['archi'],
-        offers['archi'],
-    )
-    merge_pdfs(bundle_path, [justification_pdf, best_pdf, nalibai_pdf, archi_pdf])
+    offer_pdfs = []
+    for supplier in kind['suppliers']:
+        provider = supplier['key']
+        pdf = job_dir / f'КП_{provider}.pdf'
+        create_supplier_offer('combined', supplier, pdf, area, area_rates[provider],
+                              stand_count, stand_rates[provider])
+        offer_pdfs.append(pdf)
+    merge_pdfs(bundle_path, [justification_pdf, *offer_pdfs])
 
     metadata = {
         "jobId": job_id,
@@ -1054,14 +1157,8 @@ def generate_package(
     offer_pdfs = []
     for supplier in kind['suppliers']:
         provider = supplier['key']
-        source = TEMPLATE_DIR / supplier['offer']
         pdf_path = job_dir / f'КП_{provider}.pdf'
-        if source.suffix == '.docx':
-            docx_path = job_dir / f'КП_{provider}.docx'
-            update_area_offer(source, docx_path, provider, area, area_rates[provider])
-            convert_docx_to_pdf(docx_path, job_dir)
-        else:
-            create_area_offer_archi(source, pdf_path, area, area_rates[provider])
+        create_supplier_offer(ktru_key, supplier, pdf_path, area, area_rates[provider])
         offer_pdfs.append(pdf_path)
     merge_pdfs(bundle_path, [justification_pdf, *offer_pdfs])
 
